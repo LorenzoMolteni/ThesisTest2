@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">ThesisTest2</string>
+    <string name="accessibility_service_label">NudgeApp</string>
+    <string name="receiver">MyReceiver</string>
+    <string name="accessibility_service_description">Nudging people towards better decisions in their usage of technology</string>
+
+    <!--Strings used for notification-->
+    <string name="channel_name">ThesisTestNotificationChannel</string>
+    <string name="channel_description">Notification channel for displaying notifications</string>
+    <string name="notification_title">NudgeApp</string>
+    <string name="notification_message">NudgeApp is running foreground</string>
+    <string name="notification_ticker_text">NudgeApp is running foreground</string>
+
+    <!--Strings used for requesting permissions in xiaomi-->
+    <string name="xiaomi_dialog_title">Please enable the additional permissions</string>
+    <string name="xiaomi_dialog_text">This app will not work if you do not grant the additional permission to display popups while in background.</string>
+    <!--Strings used for displaying toasts related to permissions-->
+    <string name="permissions_granted_message">Thank you for giving your permission.</string>
+    <string name="permissions_not_granted_message">We are sorry, but if you do not give your permission, this app cannot work.\nYou can do it manually from Settings</string>
+
+
+    <!--Strings containing textual nudges-->
+    <string name="scroll_nudge1_1">Infinite scrolling is one the dark patterns used by Facebook/ Instagram/ TikTok for keeping you online and earning from your attention. You can keep scrolling as much as you want, but the reward you get is variable, since the quality of the new contents cannot be predicted.</string>
+    <string name="scroll_nudge1_2">The infinite scrolling dark pattern used in social networks can lead you to a more passive and problematic technology overuse, causing lack of sleep, decreased communication, depression, or even obesity and ADHD. </string>
+    <string name="scroll_nudge2_1">You have been scrolling fast/ really fast recently. Slow down and enjoy the contents.</string>
+    <string name="scroll_nudge2_2">You have been scrolling fast/ really fast recently. If nothing is of your interest, consider taking a break.</string>
+    <string name="pull_nudge1_1">Pull to refresh is one of the attention-capture dark patterns used in Facebook/ Instagram/ TikTok. It allows you to swipe down and load contents which can be new or not, as it happens in slot machines, where you can win or lose.</string>
+    <string name="pull_nudge1_2">The pull to refresh dark pattern used in social networks can lead you to use more technology, causing lack of sleep, decreased communication, depression, or even obesity and ADHD. </string>
+    <string name="pull_nudge2_1">You have refreshed the contents. If you have already seen everything, just take a break.</string>
+    <string name="pull_nudge2_2">Pull to refresh is like a slot machine. This time it’s a win or a loss?</string>
+</resources>

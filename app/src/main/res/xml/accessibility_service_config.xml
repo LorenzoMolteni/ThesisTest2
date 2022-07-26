@@ -1,0 +1,18 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:accessibilityEventTypes="typeViewScrolled|typeWindowStateChanged"
+    android:packageNames="com.facebook.katana, com.instagram.android, com.zhiliaoapp.musically"
+    android:accessibilityFlags="flagDefault|flagRequestTouchExplorationMode"
+    android:accessibilityFeedbackType="feedbackVisual"
+    android:notificationTimeout="100"
+    android:canRetrieveWindowContent="true"
+    android:canRequestTouchExplorationMode="false"
+    android:settingsActivity="com.example.thesistest2.activity.MainActivity" />
+
+<!--
+description: description of the accessibility service
+packageNames: facebook, instagram and tiktok
+accessibilityEventTypes: interested in all events -> try android:accessibilityEventTypes="TYPE_VIEW_SCROLLED"
+notificationTimeout: time that passes between two notifications sent to the service
+settingsActivity: path to the activity where settings for this service can be changed
+-->
