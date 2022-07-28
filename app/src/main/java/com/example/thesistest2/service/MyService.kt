@@ -1,23 +1,17 @@
 package com.example.thesistest2.service
 
 import android.accessibilityservice.AccessibilityService
-import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.os.SystemClock
-import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.example.thesistest2.R
 import com.example.thesistest2.activity.MainActivity
 import com.example.thesistest2.activity.TextualNudge1
-import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
-import kotlin.math.roundToInt
+import kotlin.random.Random.Default.nextInt
 
 
 class MyService : AccessibilityService() {
@@ -25,14 +19,24 @@ class MyService : AccessibilityService() {
     private val CHANNEL_ID = "NudgeApp"             //notification
     private val ONGOING_NOTIFICATION_ID = 1111      //notification
     private var isThisServiceRunning = false        //debugging
-    private val minMillisInterval = 60000           // 1 hour = 3600000
+
+    //this is the minimum time that has to pass between two nudges to be displayed
+    private val minMillisInterval = 60000    //1 min debugging       // 1 hour = 3600000
+    //this is the minimum time that a user has to spent on a social network before the nudge is shown
+    private val minMillisSpent = 30000       //30sec debugging       //30 min  = 1800000
+    //this is used for detecting when an app is reopened
+    private val thresholdValue = 60000                              //1 min = 60000 millis
+
     private var lastOpenedApp = ""
     private var lastOpeningTimestamp: Long = 0
     private var lastInteractionTimestamp: Long = 0
     private var lastNudgeDisplayedTimestamp: Long = 0
 
     //these arrays contain info for social -> Facebook at pos 0, Instagram at pos 1, TikTok at pos 2
+    //TODO reset millis at midnight
     private var dailyMillisSpent: Array<Long> = arrayOf(0, 0, 0)
+    //TODO update average each day
+    private var averageMillisSpent: Array<Long> = arrayOf(0, 0, 0)
     private var lastNudgeDate: Array<String> = arrayOf("", "", "")
 
 
@@ -107,10 +111,14 @@ class MyService : AccessibilityService() {
         if(eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED && packageNamesSocialNetworks.contains(packageName)) {
             //that's the right event (scrolling) and the right app
             val isSwipeUp = event.scrollDeltaY > 0
-            if(isSwipeUp)
-                Log.d(TAG, "Scrolling")
-            else
-                Log.d(TAG, "pulling")
+            if(isSwipeUp){
+                //Log.d(TAG, "Scrolling")
+
+            }
+            else{
+                //Log.d(TAG, "pulling")
+
+            }
         }
         if(eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && packageNamesSocialNetworks.contains(packageName)){
             if(packageName != lastOpenedApp){
@@ -138,10 +146,43 @@ class MyService : AccessibilityService() {
                     this.startActivity(intent)
                 }
             }
+            else {
+                //the window_state_changed event is arriving from the last opened app
+                //this can happen both when the same app is closed and reopened, or depending on the interaction between user and social
+                //basically, here we are not sure that the user is opening an app that was in background
+                //so we are not sure that we can display the nudge
+                //however, this generates a problem: if a user uses just one app, the nudge is never shown
+
+                //POSSIBLE NAIVE SOLUTION
+                //If this event is fired after 1 minute (thresholdValue)  from the last interaction
+                //We can suppose the app has been closed and reopened
+                if(event.eventTime - lastInteractionTimestamp > thresholdValue){
+                    //suppose that app has been reopened from background
+                    val index = packageNamesSocialNetworks.indexOf(packageName)
+                    dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
+                    Log.d(TAG, "App $packageName has been reopened, updated daily millis = ${dailyMillisSpent[index]}")
+
+                    //reset info
+                    lastOpeningTimestamp = event.eventTime
+                    lastInteractionTimestamp = event.eventTime
+
+                    val nudge = displayNudgeForApp(packageName.toString(), event.eventTime)
+                    if(nudge != null) {
+                        //start activity
+                        val intent = Intent(applicationContext, TextualNudge1::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        intent.putExtra("nudge", nudge)
+                        this.startActivity(intent)
+                    }
+                }
+            }
         }
         if(eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED && packageNamesSocialNetworks.contains(packageName)) {
-            if(lastOpenedApp == packageName)
+            if(lastOpenedApp == packageName){
+                //this is useful in case of videos, because window content changes without user interaction
+                //Log.d(TAG, "Updating lastInteractionTimestamp because of window_content_changed")
                 lastInteractionTimestamp = event.eventTime
+            }
         }
     }
 
@@ -167,34 +208,97 @@ class MyService : AccessibilityService() {
 
     private fun displayNudgeForApp(packageName:String, eventTime: Long) : String? {
         val index = packageNamesSocialNetworks.indexOf(packageName)
-        val rand = (Math.random() * 4).roundToInt() // 0 <= rand < 4
+        val rand = nextInt(0,3) // 0 <= rand <= 3
         val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
         val now = LocalDateTime.now()
         val today = now.format(formatter)
 
-        Log.d(TAG, "displayNudgeForApp $rand")
-
         //nudge is not displayed if it has already been displayed, even if for another app, within the previous 60 minutes
-        if (lastNudgeDisplayedTimestamp > 0 && lastNudgeDisplayedTimestamp-eventTime < minMillisInterval)
+        if (lastNudgeDisplayedTimestamp > 0 && eventTime - lastNudgeDisplayedTimestamp < minMillisInterval) {
+            Log.d(TAG, "Nudge1 not displayed because already displayed in previous $minMillisInterval millis")
+            Log.d(TAG, "$eventTime - $lastNudgeDisplayedTimestamp")
             return null
+        }
 
-        //TODO continue from here
+        //last nudge date == today -> Nudge 1 can appear at most once a day per each application
+        if(lastNudgeDate[index] == today) {
+            Log.d(TAG, "Nudge1 has already been displayed today for $packageName")
+            return null
+        }
+
+        //Nudge 1 is displayed at most twice a day
+        var count = 0
+        lastNudgeDate.forEach { if(it == today) count++ }
+        if(count > 1) {
+            Log.d(TAG, "Nudge1 has already been displayed $count today")
+            return null
+        }
+
+        //Nudge 1 is displayed for application X, only if the user has already spent more than 30 minutes inside the social network X that day
+        if(dailyMillisSpent[index] < minMillisSpent) {
+            Log.d(TAG, "User has spent less than $minMillisSpent millis today on $packageName")
+            return null
+        }
+
+        //When entering one of the targeted apps, the probability that Nudge 1 is shown is 25%.
+        //If the user has spent more time than his daily average on the social networks in consideration,
+        //the probability that Nudge 1 is shown is increased to 50%.
+        if(dailyMillisSpent[index] > averageMillisSpent[index]){
+            //50% probability
+            if(rand != 1 && rand != 2){
+                //0<rand<4 -> suppose rand == 1 || rand == 2 is the condition for which the nudge is shown
+                Log.d(TAG, "P = 50% but Nudge1 not shown because rand = $rand")
+                return null
+            }
+        }
+        else {
+            //25% probability
+            if(rand != 1){
+                //0<rand<4 -> suppose rand == 1 is the condition for which the nudge is shown
+                Log.d(TAG, "P = 25% but Nudge1 not shown because rand = $rand")
+                return null
+            }
+        }
+
+        /*if arrived here, all conditions are met
+        * I can chose among 4 different textual nudges (2 for scrolling and 2 for pull to refresh)
+        * they are scroll_nudge1_1_facebook/instagram/tiktok, scroll_nudge1_2, pull_nudge1_1_facebook/instagram/tiktok, pull_nudge1_2
+        * the id of the string to retrieve depends also on the social in consideration
+         */
+
+        lastNudgeDisplayedTimestamp = eventTime         //update the timestamp of the last shown nudge
+        lastNudgeDate[index] = today                    //set that today the nudge has been displayed for the app
+        val rand2 = nextInt(0,3)              // generate a new random to choose the textual nudge 0 <= rand2 <= 3
+
+        Log.d(TAG, "Nudge1 displayed. rand = $rand, rand2 = $rand2, count = $count")
+
+        if(rand2 == 1)
+            return resources.getString(R.string.scroll_nudge1_2) //this textual nudge do not depend on the social
+
+        if(rand2 == 3)
+            return resources.getString(R.string.pull_nudge1_2)  //this textual nudge do not depend on the social
+
+        //here rand == 0 || rand == 2
         return when(index){
-            0 -> { //facebook
-                if(lastNudgeDate[0] != today) //last nudge date != today
-                    "Facebook"
+            0 -> {
+                if(rand == 0)
+                    resources.getString(R.string.scroll_nudge1_1_facebook)
                 else
-                    null
+                    resources.getString(R.string.pull_nudge1_1_facebook)
             }
             1 -> { //instagram
-                "Instagram"
-
+                if(rand == 0)
+                    resources.getString(R.string.scroll_nudge1_1_instagram)
+                else
+                    resources.getString(R.string.pull_nudge1_1_instagram)
             }
             2 -> { //tiktok
-                "TikTok"
-
+                if(rand == 0)
+                    resources.getString(R.string.scroll_nudge1_1_tiktok)
+                else
+                    resources.getString(R.string.pull_nudge1_1_tiktok)
             }
-            else -> null
+            else -> null //error case, should not happen
         }
     }
 
