@@ -19,6 +19,8 @@ class MyService : AccessibilityService() {
     private val CHANNEL_ID = "NudgeApp"             //notification
     private val ONGOING_NOTIFICATION_ID = 1111      //notification
     private var isThisServiceRunning = false        //debugging
+    private val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
+    private var currentDate: String = ""
 
     //this is the minimum time that has to pass between two nudges to be displayed
     private val minMillisInterval = 60000    //1 min debugging       // 1 hour = 3600000
@@ -33,10 +35,8 @@ class MyService : AccessibilityService() {
     private var lastNudgeDisplayedTimestamp: Long = 0
 
     //these arrays contain info for social -> Facebook at pos 0, Instagram at pos 1, TikTok at pos 2
-    //TODO reset millis at midnight
     private var dailyMillisSpent: Array<Long> = arrayOf(0, 0, 0)
-    //TODO update average each day
-    private var averageMillisSpent: Array<Long> = arrayOf(0, 0, 0)
+    private var averageMillisSpent: MutableList<Long> = mutableListOf(0, 0, 0)
     private var lastNudgeDate: Array<String> = arrayOf("", "", "")
 
 
@@ -82,6 +82,10 @@ class MyService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         isThisServiceRunning = true
+        currentDate = LocalDateTime.now().format(formatter)
+
+        //load average and lastNudgeDate from shared preferences
+        loadData()
         Log.d(TAG, "onServiceConnected")
     }
 
@@ -102,6 +106,7 @@ class MyService : AccessibilityService() {
 
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        val date = LocalDateTime.now().format(formatter)
         val packageName = event.packageName
         val eventType = event.eventType
 
@@ -112,12 +117,11 @@ class MyService : AccessibilityService() {
             //that's the right event (scrolling) and the right app
             val isSwipeUp = event.scrollDeltaY > 0
             if(isSwipeUp){
-                //Log.d(TAG, "Scrolling")
+                Log.d(TAG, "Scrolling")
 
             }
             else{
-                //Log.d(TAG, "pulling")
-
+                Log.d(TAG, "pulling")
             }
         }
         if(eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && packageNamesSocialNetworks.contains(packageName)){
@@ -180,9 +184,22 @@ class MyService : AccessibilityService() {
         if(eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED && packageNamesSocialNetworks.contains(packageName)) {
             if(lastOpenedApp == packageName){
                 //this is useful in case of videos, because window content changes without user interaction
-                //Log.d(TAG, "Updating lastInteractionTimestamp because of window_content_changed")
                 lastInteractionTimestamp = event.eventTime
             }
+        }
+
+        //date of the new event is after current date
+        if(currentDate != date){
+            //save data in shared preferences
+            persistData()       //this function also updates averageMillisSpent
+
+            //reset all data and change currentDate
+            currentDate = date
+            lastOpenedApp = ""
+            lastOpeningTimestamp = 0
+            lastInteractionTimestamp = 0
+            lastNudgeDisplayedTimestamp = 0
+            dailyMillisSpent = arrayOf(0, 0, 0)
         }
     }
 
@@ -209,14 +226,12 @@ class MyService : AccessibilityService() {
     private fun displayNudgeForApp(packageName:String, eventTime: Long) : String? {
         val index = packageNamesSocialNetworks.indexOf(packageName)
         val rand = nextInt(0,3) // 0 <= rand <= 3
-        val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
         val now = LocalDateTime.now()
         val today = now.format(formatter)
 
         //nudge is not displayed if it has already been displayed, even if for another app, within the previous 60 minutes
         if (lastNudgeDisplayedTimestamp > 0 && eventTime - lastNudgeDisplayedTimestamp < minMillisInterval) {
             Log.d(TAG, "Nudge1 not displayed because already displayed in previous $minMillisInterval millis")
-            Log.d(TAG, "$eventTime - $lastNudgeDisplayedTimestamp")
             return null
         }
 
@@ -300,6 +315,119 @@ class MyService : AccessibilityService() {
             }
             else -> null //error case, should not happen
         }
+    }
+
+    //PERFORMED ONCE A DAY, WHEN THE FIRST ACCESSIBILITY_EVENT OF THE DAY IS FIRED
+    private fun persistData() {
+        //get shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+
+        //LOAD NEW AVERAGE MILLIS
+        //get arrays with millis from preferences
+        val millisSpentFacebook = sharedPref.getString("millisSpentFacebook", "")
+        val millisSpentInstagram = sharedPref.getString("millisSpentInstagram", "")
+        val millisSpentTiktok = sharedPref.getString("millisSpentTiktok", "")
+        val millisFacebook: MutableList<Long>
+        val millisInstagram: MutableList<Long>
+        val millisTiktok: MutableList<Long>
+
+        //facebook
+        if(millisSpentFacebook.isNullOrBlank()){
+            millisFacebook = mutableListOf(dailyMillisSpent[0])
+            averageMillisSpent[0] = dailyMillisSpent[0]
+        }
+        else {
+            millisFacebook = millisSpentFacebook.split(";").map { it.toLong() }.toMutableList()
+            millisFacebook.add(dailyMillisSpent[0])
+            averageMillisSpent[0] = millisFacebook.average().toLong()
+        }
+        //instagram
+        if(millisSpentInstagram.isNullOrBlank()){
+            millisInstagram = mutableListOf(dailyMillisSpent[1])
+            averageMillisSpent[1] = dailyMillisSpent[1]
+        }
+        else {
+            millisInstagram = millisSpentInstagram.split(";").map { it.toLong() }.toMutableList()
+            millisInstagram.add(dailyMillisSpent[1])
+            averageMillisSpent[1] = millisInstagram.average().toLong()
+        }
+        //tiktok
+        if(millisSpentTiktok.isNullOrBlank()){
+            millisTiktok = mutableListOf(dailyMillisSpent[2])
+            averageMillisSpent[2] = dailyMillisSpent[2]
+        }
+        else {
+            millisTiktok = millisSpentTiktok.split(";").map { it.toLong() }.toMutableList()
+            millisTiktok.add(dailyMillisSpent[2])
+            averageMillisSpent[2] = millisTiktok.average().toLong()
+        }
+
+        //prepare strings containing millis to be written in shared preferences
+        val s0 = millisFacebook.joinToString(separator = ";")
+        val s1 = millisInstagram.joinToString(separator = ";")
+        val s2 = millisTiktok.joinToString(separator = ";")
+
+        //write to shared preferences
+        with (sharedPref.edit()) {
+            //write lastNudgeDate to sharedPreferences
+            lastNudgeDate.forEachIndexed { i, it ->
+                putString("lastNudgeDate$i", it)
+            }
+            putString("millisSpentFacebook", s0)
+            putString("millisSpentInstagram", s1)
+            putString("millisSpentTiktok", s2)
+            apply()
+        }
+
+        //TODO if needed, save on Firebase
+        Log.d(TAG, "Data persisted: lastNudgeDates: ${lastNudgeDate[0]} ${lastNudgeDate[0]} ${lastNudgeDate[0]}\t millis: $s0 $s1 $s2")
+    }
+
+    //USED FOR DEBUG
+    private fun clearServicePreferences() {
+        //get shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+
+        //write to shared preferences
+        with (sharedPref.edit()) {
+            //write lastNudgeDate to sharedPreferences
+            lastNudgeDate.forEachIndexed { i, it ->
+                putString("lastNudgeDate$i", "")
+            }
+            putString("millisSpentFacebook", "")
+            putString("millisSpentInstagram", "")
+            putString("millisSpentTiktok", "")
+            apply()
+        }
+    }
+
+    private fun loadData() {
+        //get shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+        lastNudgeDate.forEachIndexed{ i, it ->
+            lastNudgeDate[i] = sharedPref.getString("lastNudgeDate$i", "") ?: ""
+        }
+
+        //get arrays with millis from preferences
+        val millisSpentFacebook = sharedPref.getString("millisSpentFacebook", "")
+        val millisSpentInstagram = sharedPref.getString("millisSpentInstagram", "")
+        val millisSpentTiktok = sharedPref.getString("millisSpentTiktok", "")
+
+        val millisFacebook =
+            if(millisSpentFacebook.isNullOrBlank()) 0
+            else millisSpentFacebook.split(";").map { it.toLong() }.toMutableList().average().toLong()
+        val millisInstagram =
+            if(millisSpentInstagram.isNullOrBlank()) 0
+            else millisSpentInstagram.split(";").map { it.toLong() }.toMutableList().average().toLong()
+        val millisTiktok=
+            if (millisSpentTiktok.isNullOrBlank()) 0
+            else millisSpentTiktok.split(";").map { it.toLong() }.toMutableList().average().toLong()
+
+        averageMillisSpent[0] = millisFacebook
+        averageMillisSpent[1] = millisInstagram
+        averageMillisSpent[2] = millisTiktok
+
+        Log.d(TAG, "dates: ${lastNudgeDate[0]} ${lastNudgeDate[1]} ${lastNudgeDate[2]} $averageMillisSpent")
     }
 
 }
