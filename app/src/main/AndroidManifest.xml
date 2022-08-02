@@ -18,12 +18,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ThesisTest2">
         <activity
-            android:name=".activity.TextualNudge1"
+            android:name=".activity.ActivityNudge1"
             android:excludeFromRecents="true"
             android:taskAffinity=""
             android:exported="false" />
         <activity
             android:name=".activity.MainActivity"
+            android:configChanges="orientation"
+            android:screenOrientation="portrait"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout"
+    android:layout_width="@dimen/widget_width"
+    android:layout_height="@dimen/widget_height"
+    android:clickable="true"
+    android:orientation="vertical"
+    android:visibility="visible"
+    android:layout_gravity="end|bottom">
+
+    <!--cut images to show them better in circle-->
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/widget_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/nudge2_pulling_high"
+        app:civ_border_color="#555555"
+        app:civ_border_width="2dp" />
+
+</RelativeLayout>
+

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="widget_margin_bottom">150dp</dimen>
+    <dimen name="widget_margin_end">3dp</dimen>
+    <dimen name="widget_width">60dp</dimen>
+    <dimen name="widget_height">60dp</dimen>
+</resources>

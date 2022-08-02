@@ -13,7 +13,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 
 
-class TextualNudge1 : Activity() {
+class ActivityNudge1 : Activity() {
     private val TAG = "MY_TEXTUAL_NUDGE_1"
 
     override fun onCreate(savedInstanceState: Bundle?) {
