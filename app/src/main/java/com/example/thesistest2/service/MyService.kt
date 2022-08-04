@@ -11,7 +11,6 @@ import com.example.thesistest2.R
 import com.example.thesistest2.activity.MainActivity
 import com.example.thesistest2.activity.ActivityNudge1
 import com.example.thesistest2.widget.WidgetNudge2
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -29,43 +28,6 @@ class MyService : AccessibilityService() {
     private val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
     private var currentDate: String = ""
 
-    //VARIABLES FOR NUDGE 1
-    //this is the minimum time that has to pass between two nudges to be displayed
-    private val minMillisInterval = 60000    //1 min debugging       // 1 hour = 3600000
-    //this is the minimum time that a user has to spent on a social network before the nudge is shown
-    private val minMillisSpent = 30000       //30sec debugging       //30 min  = 1800000
-    //this is used for detecting when an app is reopened
-    private val thresholdValueAppOpening = 120000                              //2min = 120000 millis
-
-    private var lastOpenedApp = ""
-    private var lastOpeningTimestamp: Long = 0
-    private var lastInteractionTimestamp: Long = 0
-    private var lastNudgeDisplayedTimestamp: Long = 0
-
-    //these arrays contain info for social -> Facebook at pos 0, Instagram at pos 1, TikTok at pos 2
-    //values are updated when the service recognizes that a new app is opened, that the same has been opened from bg, or before being killed
-    private var dailyMillisSpent: Array<Long> = arrayOf(0, 0, 0)
-    private var averageMillisSpent: MutableList<Long> = mutableListOf(0, 0, 0)
-    private var lastNudgeDate: Array<String> = arrayOf("", "", "")
-
-
-
-    //VARIABLES FOR NUDGE 2
-    private var screenHeight: Int = 0
-    private val minSwipeLength = 100        //ignore small scrolls/pulls
-    private val minScrollsToEnableNudge: Int = 10       //after 10 scrolls, start showing nudge if necessary
-    private val scrollingTimeWindow: Int = 30000        //time window of 30sec
-    private val scrollingThresholdReallyFast = 10       //10 scrolls in time window are considered really fast
-    private val scrollingThresholdFast = 5              //5 scrolls in time window are considered fast
-    private val maxDurationWidget: Long = 3000                //3seconds of max duration for widget scrolling low
-    private var startedScrolling = false
-    private var scrollingNudgeEnabled = false
-    private var gestureAmountScrolled: Int = 0
-    private var lastTimestampScrollingLow : Long = Long.MIN_VALUE
-    private val scrollingEvents: MutableList<Pair<Long, Int>> = mutableListOf()         //list containing time and length of scroll
-    private var debugPxScrolled : Int = 0
-    private var startedPulling = false
-
     //this packageNames are already set in accessibility_service_config file, it's a double check
     private val packageNamesSocialNetworks =
         listOf(
@@ -73,6 +35,48 @@ class MyService : AccessibilityService() {
             "com.instagram.android", //instagram
             "com.zhiliaoapp.musically" //tiktok
         )
+
+    //VARIABLES FOR NUDGE 1
+    //this is the minimum time that has to pass between two nudges to be displayed
+    private val minMillisInterval = 60000    //1 min debugging       // 1 hour = 3600000
+    //this is the minimum time that a user has to spent on a social network before the nudge is shown
+    private val minMillisSpent = 30000       //30sec debugging       //30 min  = 1800000
+
+    //this is used for detecting when an app is reopened
+    private val thresholdValueAppOpening = 120000                    //2min = 120000 millis
+    private var lastOpenedApp = ""
+    private var lastOpeningTimestamp: Long = 0
+    private var lastInteractionTimestamp: Long = 0
+
+    private var lastNudgeDisplayedTimestamp: Long = 0
+    //these arrays contain info for social -> Facebook at pos 0, Instagram at pos 1, TikTok at pos 2
+    //values are updated when the service recognizes that a new app is opened, that the same has been opened from bg, or before being killed
+    private var dailyMillisSpent: Array<Long> = arrayOf(0, 0, 0)
+    private var averageMillisSpent: MutableList<Long> = mutableListOf(0, 0, 0)
+    private var lastNudgeDate: Array<String> = arrayOf("", "", "")
+
+
+    //VARIABLES FOR NUDGE 2
+    //scrolling
+    private var screenHeight: Int = 0
+    private val minSwipeLength = 100                    //ignore small scrolls/pulls
+    private val minScrollsToEnableNudge: Int = 10       //after 10 scrolls, start showing nudge if necessary
+    private val scrollingTimeWindow: Int = 30000        //time window of 30sec
+    private val scrollingThresholdReallyFast = 10       //10 scrolls in time window are considered really fast
+    private val scrollingThresholdFast = 5              //5 scrolls in time window are considered fast
+    private val scrollingNudgeTimeout: Long = 1000      //1second timeout for checking how many scrolls in the last scrollingTimeWindow
+    private val maxDurationWidget: Long = 3000          //3seconds of max duration for widget scrolling low
+    private var startedScrolling = false
+    private var scrollingNudgeEnabled = false
+    private var checkingScrolling = false
+    private var gestureAmountScrolled: Int = 0
+    private var lastTimestampScrollingLow : Long = Long.MAX_VALUE
+    //list containing time (from Calendar, not from event) and length of scroll
+    private val scrollingEvents: MutableList<Pair<Long, Int>> = mutableListOf()
+    private var debugPxScrolled : Int = 0
+
+    //pulling
+    private var startedPulling = false
 
 
     //onCreate is called before onServiceConnected
@@ -100,12 +104,8 @@ class MyService : AccessibilityService() {
         startForeground(ONGOING_NOTIFICATION_ID, notification)
 
         //set display metrics
-
         val display = (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay
         screenHeight = display.height
-        //screenHeight = displayMetrics?.heightPixels ?: 0
-
-        Log.d(TAG, "Screen height: $screenHeight")
 
     }
 
@@ -159,7 +159,6 @@ class MyService : AccessibilityService() {
             val length = event.scrollDeltaY
             debugPxScrolled += length
 
-            //update array
             if(isSwipeUp){
                 //ignore small scrolls
                 startedScrolling = length >= minSwipeLength
@@ -168,50 +167,27 @@ class MyService : AccessibilityService() {
                     gestureAmountScrolled += length
                 }
                 else {
-                    //the amount scrolled is becoming less than threshold -> suppose the gesture is ending
                     if(gestureAmountScrolled > 0){
-                        Log.d(TAG, "Amount scrolled: $gestureAmountScrolled")
-                        scrollingEvents.add(Pair(eventTime, gestureAmountScrolled))
-                        if(scrollingEvents.size >= minScrollsToEnableNudge){
+                        //the amount scrolled is becoming less than threshold -> suppose the gesture is ending
+                        //Log.d(TAG, "Amount scrolled: $gestureAmountScrolled")
+                        //we need current timeInMillis because after displaying the widget we will start checking periodically without events
+                        scrollingEvents.add(Pair(Calendar.getInstance().timeInMillis, gestureAmountScrolled))
+
+                        if(!scrollingNudgeEnabled && scrollingEvents.size >= minScrollsToEnableNudge){
                             //app has collected many scrolling events and can start displaying nudge if necessary
                             Log.d(TAG, "Enabling nudge")
                             scrollingNudgeEnabled = true
                         }
-
-                        if(scrollingNudgeEnabled){
-                            //check if a nudge has to be displayed
-                            //consider a time window of scrollingTimeWindow
-                            var count = countScrollsInTimeWindow(eventTime)
-
-                            if(count >= scrollingThresholdReallyFast){
-                                //show widget for really fast
-                                lastTimestampScrollingLow = Long.MIN_VALUE
-                                WidgetNudge2.fillWidget(this, true, 2)
-                            }
-                            else if (count >= scrollingThresholdFast){
-                                lastTimestampScrollingLow = Long.MIN_VALUE
-                                WidgetNudge2.fillWidget(this, true, 1)
-                            }
-                            else if(lastTimestampScrollingLow == Long.MIN_VALUE){
-                                //set widget for scrolling low only if it is not already set
-                                lastTimestampScrollingLow = eventTime
-                                WidgetNudge2.fillWidget(this, true, 0)
-                                MainScope().launch {
-                                    delay(maxDurationWidget)
-                                    //hide widget only if still present
-                                    if(lastTimestampScrollingLow != Long.MIN_VALUE)
-                                        WidgetNudge2.hideWidget()
-                                }
-                            }
+                        if(scrollingNudgeEnabled && !checkingScrolling){
+                            checkScrollingNudge(packageName)
                         }
-
                     }
                     gestureAmountScrolled = 0
                 }
 
             }
             else{
-                //Log.d(TAG, "Pulling of ${event.scrollDeltaY}")
+                Log.d(TAG, "Pulling of ${event.scrollDeltaY}")
             }
 
         }
@@ -229,6 +205,11 @@ class MyService : AccessibilityService() {
                 lastOpeningTimestamp = eventTime
                 lastInteractionTimestamp = eventTime
 
+                //reset info for scrolling nudge 2
+                debugPxScrolled = 0
+                scrollingNudgeEnabled = false           //user has to redo 10 scrolls in the other app
+                scrollingEvents.clear()                 //clear all the events (they are related to previous app)
+
                 Log.d(TAG, "Opening app ${packageName} at time ${lastOpeningTimestamp}")
 
                 val nudge = displayNudgeOneForApp(packageName.toString(), eventTime)
@@ -245,6 +226,7 @@ class MyService : AccessibilityService() {
             //this is useful in case of videos, because window content changes without user interaction
             if(lastOpenedApp == packageName){
                 if(eventTime - lastInteractionTimestamp > thresholdValueAppOpening){
+                    //reopening the same app from background
                     //this event has arrived after 2 minutes of inactivity from the previously opened app
                     // -> suppose that app has been reopened from background
                     dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
@@ -252,19 +234,18 @@ class MyService : AccessibilityService() {
 
                     //reset info
                     lastOpeningTimestamp = eventTime
-                    lastInteractionTimestamp = eventTime
 
+                    //TODO sometimes this creates strange behaviors
                     val nudge = displayNudgeOneForApp(packageName.toString(), eventTime)
                     if(nudge != null) {
-                        //start activity
+                        //start activity to display nudge 1
                         val intent = Intent(applicationContext, ActivityNudge1::class.java)
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         intent.putExtra("nudge", nudge)
                         this.startActivity(intent)
                     }
                 }
-                else
-                    lastInteractionTimestamp = eventTime
+                lastInteractionTimestamp = eventTime
             }
         }
 
@@ -366,7 +347,7 @@ class MyService : AccessibilityService() {
         lastNudgeDate[index] = today                    //set that today the nudge has been displayed for the app
         val rand2 = nextInt(0,3)              // generate a new random to choose the textual nudge 0 <= rand2 <= 3
 
-        Log.d(TAG, "Nudge1 displayed. rand = $rand, rand2 = $rand2, count = $count")
+        Log.d(TAG, "Nudge1 displayed, daily millis: ${dailyMillisSpent[index]}. rand = $rand, rand2 = $rand2, count = $count")
 
         if(rand2 == 1)
             return resources.getString(R.string.scroll_nudge1_2) //this textual nudge do not depend on the social
@@ -398,9 +379,35 @@ class MyService : AccessibilityService() {
         }
     }
 
+    private fun checkScrollingNudge(packageName: CharSequence) {
+        if(packageName != lastOpenedApp){
+            Log.d(TAG, "checkScrollingNudge but different app")
+            WidgetNudge2.hideWidget()
+            checkingScrolling = false
+            return
+        }
+        val count = countScrollsInTimeWindow(Calendar.getInstance().timeInMillis)
+        val returnValue = checkThresholdsToDisplayScrollingNudge(count, lastInteractionTimestamp)
+        Log.d(TAG, "checkScrollingNudge -> count= $count \t returnValue = $returnValue")
+
+        if(returnValue > 0 ) {
+            checkingScrolling = true
+            MainScope().launch {
+                //wait some time and check again (recursion)
+                delay(scrollingNudgeTimeout)
+                checkScrollingNudge(packageName)
+            }
+        }
+        else {
+            //stop recursion
+            checkingScrolling = false
+        }
+
+    }
+
     private fun countScrollsInTimeWindow(eventTime: Long): Int {
-        var count = 0
-        var pixelsScrolled = 0
+        var count = 0                   //the number of scrolling events delivered to the app
+        var pixelsScrolled = 0          //the amount of pixels scrolled
         //iterate list backwards to avoid exceptions
         for(i in scrollingEvents.indices.reversed()) {
             if(eventTime - scrollingEvents[i].first > scrollingTimeWindow){
@@ -413,9 +420,59 @@ class MyService : AccessibilityService() {
                 pixelsScrolled += scrollingEvents[i].second
             }
         }
-        Log.d(TAG, "ScrollingEvents.size = ${scrollingEvents.size} -> pixelsScrolled: $pixelsScrolled")
 
-        return count
+        //this represents number on screens scrolled (a long swipe down is more than one screen)
+        val screensScrolled = pixelsScrolled / screenHeight
+
+        return (count + screensScrolled)/2
+    }
+
+    private fun checkThresholdsToDisplayScrollingNudge(count: Int, eventTime: Long): Int {
+        if(count >= scrollingThresholdReallyFast){
+            //show widget for really fast
+            lastTimestampScrollingLow = Long.MIN_VALUE
+            WidgetNudge2.fillWidget(this, true, 2)
+            return 2
+        }
+        else if (count >= scrollingThresholdFast){
+            lastTimestampScrollingLow = Long.MIN_VALUE
+            WidgetNudge2.fillWidget(this, true, 1)
+            return 1
+        }
+        else if(lastTimestampScrollingLow == Long.MIN_VALUE){
+            //set widget for scrolling low only if it is not already set
+            lastTimestampScrollingLow = eventTime
+            WidgetNudge2.fillWidget(this, true, 0)
+
+            //comment this coroutine to make widget stay on screen
+            //widget has to disappear after 3 seconds, if it has not changed
+            MainScope().launch {
+                delay(maxDurationWidget)
+                //hide widget only if still present
+                if(lastTimestampScrollingLow != Long.MIN_VALUE)
+                    WidgetNudge2.hideWidget()
+            }
+            return 0
+        }
+        return -1 //already displaying scrolling nudge low
+    }
+
+    //USED FOR DEBUG
+    private fun clearServicePreferences() {
+        //get shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+
+        //write to shared preferences
+        with (sharedPref.edit()) {
+            //write lastNudgeDate to sharedPreferences
+            lastNudgeDate.forEachIndexed { i, it ->
+                putString("lastNudgeDate$i", "")
+            }
+            putString("millisSpentFacebook", "")
+            putString("millisSpentInstagram", "")
+            putString("millisSpentTiktok", "")
+            apply()
+        }
     }
 
     //PERFORMED ONCE A DAY, WHEN THE FIRST ACCESSIBILITY_EVENT OF THE DAY IS FIRED
@@ -508,24 +565,6 @@ class MyService : AccessibilityService() {
         Log.d(TAG, "Data persisted: lastNudgeDates: ${lastNudgeDate[0]} ${lastNudgeDate[1]} ${lastNudgeDate[2]}\t millis: $s0 $s1 $s2")
     }
 
-    //USED FOR DEBUG
-    private fun clearServicePreferences() {
-        //get shared preferences
-        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
-
-        //write to shared preferences
-        with (sharedPref.edit()) {
-            //write lastNudgeDate to sharedPreferences
-            lastNudgeDate.forEachIndexed { i, it ->
-                putString("lastNudgeDate$i", "")
-            }
-            putString("millisSpentFacebook", "")
-            putString("millisSpentInstagram", "")
-            putString("millisSpentTiktok", "")
-            apply()
-        }
-    }
-
     //THIS FUNCTION IS CALLED FROM onServiceConnected
     private fun loadData() {
         //get shared preferences
@@ -589,7 +628,7 @@ class MyService : AccessibilityService() {
         averageMillisSpent[1] = millisInstagram
         averageMillisSpent[2] = millisTiktok
 
-        Log.d(TAG, "LoadData -> dates: ${lastNudgeDate[0]}, ${lastNudgeDate[1]}, ${lastNudgeDate[2]} avgs: $averageMillisSpent")
+        Log.d(TAG, "LoadData -> dates: ${lastNudgeDate[0]}, ${lastNudgeDate[1]}, ${lastNudgeDate[2]}\tavgs: $averageMillisSpent \tmillis: [${dailyMillisSpent[0]}, ${dailyMillisSpent[1]}, ${dailyMillisSpent[2]}]")
     }
 
 }

@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import androidx.core.content.res.ResourcesCompat
 import com.example.thesistest2.R
 import de.hdodenhof.circleimageview.CircleImageView
+import kotlinx.coroutines.MainScope
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -24,7 +25,6 @@ object WidgetNudge2 {
 
     fun fillWidget(context: Context, isScroll: Boolean, type: Int) {
         if(frameLayout == null){
-            Log.d(TAG, "Creating widget from scratch")
             val mWindowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
             frameLayout = FrameLayout(context)
             val inflater = LayoutInflater.from(context)
@@ -81,12 +81,7 @@ object WidgetNudge2 {
 
     }
 
-    fun showWidget() {
-
-    }
-
     fun hideWidget() {
         frameLayout?.visibility = View.GONE
-        Log.d(TAG, "Widget hidden")
     }
 }
