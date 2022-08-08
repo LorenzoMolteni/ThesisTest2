@@ -4,4 +4,6 @@
     <dimen name="widget_margin_end">3dp</dimen>
     <dimen name="widget_width">60dp</dimen>
     <dimen name="widget_height">60dp</dimen>
+    <dimen name="textual_widget_margin_bottom">210dp</dimen>
+    <dimen name="textual_widget_margin_end">43dp</dimen>
 </resources>

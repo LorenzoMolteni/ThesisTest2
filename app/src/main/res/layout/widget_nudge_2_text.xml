@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:theme="@style/Theme.ThesisTest2"
+    android:id="@+id/layout_textual_nudge"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="end"
+    android:clickable="true"
+    android:orientation="vertical"
+    android:visibility="visible"
+    android:layout_gravity="end|bottom">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardElevation="10dp"
+            android:backgroundTint="@color/dark_gray_bg"
+            app:cardCornerRadius="4dp">
+                <TextView
+                    android:id="@+id/widget_textual_nudge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="@color/white"
+                    android:text="@string/pull_nudge2_2"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+
+        </androidx.cardview.widget.CardView>
+
+</RelativeLayout>

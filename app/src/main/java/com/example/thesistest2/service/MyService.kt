@@ -17,7 +17,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
-import kotlin.random.Random.Default.nextInt
+import kotlin.math.abs
+import kotlin.random.Random
 
 
 class MyService : AccessibilityService() {
@@ -26,6 +27,7 @@ class MyService : AccessibilityService() {
     private val ONGOING_NOTIFICATION_ID = 1111      //notification
     private var isThisServiceRunning = false        //debugging
     private val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
+    private val rand = Random(123456)
     private var currentDate: String = ""
 
     //this packageNames are already set in accessibility_service_config file, it's a double check
@@ -57,15 +59,16 @@ class MyService : AccessibilityService() {
 
 
     //VARIABLES FOR NUDGE 2
+    private val maxDurationWidget: Long = 3000          //3seconds of max duration for widget scrolling low or pulling
+
     //scrolling
     private var screenHeight: Int = 0
-    private val minSwipeLength = 100                    //ignore small scrolls/pulls
+    private val minSwipeLength = 200                    //ignore small scrolls/pulls
     private val minScrollsToEnableNudge: Int = 10       //after 10 scrolls, start showing nudge if necessary
     private val scrollingTimeWindow: Int = 30000        //time window of 30sec
     private val scrollingThresholdReallyFast = 10       //10 scrolls in time window are considered really fast
     private val scrollingThresholdFast = 5              //5 scrolls in time window are considered fast
     private val scrollingNudgeTimeout: Long = 1000      //1second timeout for checking how many scrolls in the last scrollingTimeWindow
-    private val maxDurationWidget: Long = 3000          //3seconds of max duration for widget scrolling low
     private var startedScrolling = false
     private var scrollingNudgeEnabled = false
     private var checkingScrolling = false
@@ -76,7 +79,17 @@ class MyService : AccessibilityService() {
     private var debugPxScrolled : Int = 0
 
     //pulling
-    private var startedPulling = false
+    private val appOpeningTimeThresholdForPulling : Long = 10000    //10 seconds timeout where pulls are not considered
+    private val pullingTimeWindow: Long = 600000                    //10 minutes time window for pulling
+    private val ignorePullGestureTimeout: Long = 2000               //2 seconds timeout used for ignoring subsequent pulls or horizontal gestures
+    private val pullingDeltaXThreshold: Int = 50                    //if scroll event has a deltaX higher than threshold, it is not considered a pull
+    private val pullingThresholdReallyFrequent: Int = 3             //3 pulls in time window is considered really frequent
+    private val pullingThresholdFrequent: Int = 2                   //2 pulls in time window is considered frequent
+    private val classNamePullFacebookInstagram = "androidx.recyclerview.widget.RecyclerView"
+    private var isPullingNudgeDisplayed = false
+    private var lastTimestampIgnorePull: Long = 0
+    private val pullingEvents: MutableList<Long> = mutableListOf()
+
 
 
     //onCreate is called before onServiceConnected
@@ -153,11 +166,12 @@ class MyService : AccessibilityService() {
 
         //IMPORTANT NOTE: event.eventTime is relative to boot time and does not include sleep time
         //this is not important for this app purpose, since we need only the time passed between two events, that is the same
-
         if(eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             val isSwipeUp = event.scrollDeltaY > 0
             val length = event.scrollDeltaY
             debugPxScrolled += length
+
+            //Log.d(TAG, "$length $debugPxScrolled ${event.className} ${event.windowId} ${event.toIndex}")
 
             if(isSwipeUp){
                 //ignore small scrolls
@@ -175,7 +189,7 @@ class MyService : AccessibilityService() {
 
                         if(!scrollingNudgeEnabled && scrollingEvents.size >= minScrollsToEnableNudge){
                             //app has collected many scrolling events and can start displaying nudge if necessary
-                            Log.d(TAG, "Enabling nudge")
+                            //Log.d(TAG, "Enabling nudge")
                             scrollingNudgeEnabled = true
                         }
                         if(scrollingNudgeEnabled && !checkingScrolling){
@@ -187,7 +201,42 @@ class MyService : AccessibilityService() {
 
             }
             else{
-                Log.d(TAG, "Pulling of ${event.scrollDeltaY}")
+                if(eventTime - lastOpeningTimestamp > appOpeningTimeThresholdForPulling ){
+                    //pulls performed in the first appOpeningTimeThresholdForPulling seconds are not considered
+                    //check if it is an horizontal scroll
+                    val deltaX = abs(event.scrollDeltaX)
+                    if(deltaX > pullingDeltaXThreshold){
+                        //Log.d(TAG, "Ignoring pull at time $eventTime")
+                        lastTimestampIgnorePull = eventTime
+                        return
+                    }
+                    //scrolling is not much on x axis, check if there is a timeout set
+                    if(eventTime - lastTimestampIgnorePull < ignorePullGestureTimeout){
+                        //Log.d(TAG, "Pull ignored because of timeout at time $eventTime")
+                        return
+                    }
+
+                    if(index == 0 || index == 1){
+                        //facebook or instagram
+                        //on Instagram and facebook, each pulling is associated with an event of type VIEW_SCROLLED with length = 0
+                        //the event.className they are associated to is "androidx.recyclerview.widget.RecyclerView"
+                        //this same type of event is fired when changing tab (ex. going to facebook watch, marketplace, ecc)
+                        //this same type of event is fired when waiting the loading of contents from the bottom of the feed
+                        if(length == 0 && event.className.equals(classNamePullFacebookInstagram) ){
+                            Log.d(TAG, "Pulling on $packageName")
+                            pullingEvents.add(eventTime)
+                            checkPullingNudge(eventTime)
+                        }
+                        //ignore another really close pull
+                        lastTimestampIgnorePull = eventTime
+                    }
+                    else {
+                        //tiktok
+                        //on tiktok, even if the the user is pulling, the event can arrive both as a scroll (scrolldeltay >0)
+                        // or as a pull (scrollDeltaY><0)
+                        //no other events arrive. The only difference is that, on my phone, the length of scrolls is usually a multiple of 2161
+                    }
+                }
             }
 
         }
@@ -196,8 +245,9 @@ class MyService : AccessibilityService() {
                 //opening a new app
                 if (lastOpenedApp != "") {
                     //update information about the usage of the last opened app
-                    dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
-                    Log.d(TAG, "updated info for $lastOpenedApp, daily millis = ${dailyMillisSpent[index]}")
+                    val lastOpenedAppIndex = packageNamesSocialNetworks.indexOf(lastOpenedApp)
+                    dailyMillisSpent[lastOpenedAppIndex] += (lastInteractionTimestamp - lastOpeningTimestamp)
+                    Log.d(TAG, "updated info for $lastOpenedApp, daily millis = ${dailyMillisSpent[lastOpenedAppIndex]}")
                 }
 
                 //reset info
@@ -209,6 +259,10 @@ class MyService : AccessibilityService() {
                 debugPxScrolled = 0
                 scrollingNudgeEnabled = false           //user has to redo 10 scrolls in the other app
                 scrollingEvents.clear()                 //clear all the events (they are related to previous app)
+
+                //reset info for pulling nudge 2
+                lastTimestampIgnorePull = 0
+                pullingEvents.clear()
 
                 Log.d(TAG, "Opening app ${packageName} at time ${lastOpeningTimestamp}")
 
@@ -245,6 +299,7 @@ class MyService : AccessibilityService() {
                         this.startActivity(intent)
                     }
                 }
+
                 lastInteractionTimestamp = eventTime
             }
         }
@@ -252,6 +307,9 @@ class MyService : AccessibilityService() {
 
         //date of the new event is after current date
         if(currentDate != date){
+            //before saving data, update daily millis for last opened app
+            dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
+
             //save data in shared preferences
             persistData()       //this function also updates averageMillisSpent
 
@@ -287,7 +345,7 @@ class MyService : AccessibilityService() {
 
     private fun displayNudgeOneForApp(packageName:String, eventTime: Long) : String? {
         val index = packageNamesSocialNetworks.indexOf(packageName)
-        val rand = nextInt(0,3) // 0 <= rand <= 3
+        val rand = rand.nextInt(0,4) // 0 <= rand <= 3
         val now = LocalDateTime.now()
         val today = now.format(formatter)
 
@@ -345,7 +403,7 @@ class MyService : AccessibilityService() {
 
         lastNudgeDisplayedTimestamp = eventTime         //update the timestamp of the last shown nudge
         lastNudgeDate[index] = today                    //set that today the nudge has been displayed for the app
-        val rand2 = nextInt(0,3)              // generate a new random to choose the textual nudge 0 <= rand2 <= 3
+        val rand2 = this.rand.nextInt(0,4)              // generate a new random to choose the textual nudge 0 <= rand2 <= 3
 
         Log.d(TAG, "Nudge1 displayed, daily millis: ${dailyMillisSpent[index]}. rand = $rand, rand2 = $rand2, count = $count")
 
@@ -386,12 +444,18 @@ class MyService : AccessibilityService() {
             checkingScrolling = false
             return
         }
+        if(isPullingNudgeDisplayed){
+            //currently the pulling nudge is on screen, return to don't make it be overridden by scrolling nudge
+            checkingScrolling = false
+            return
+        }
+
         val count = countScrollsInTimeWindow(Calendar.getInstance().timeInMillis)
         val returnValue = checkThresholdsToDisplayScrollingNudge(count, lastInteractionTimestamp)
-        Log.d(TAG, "checkScrollingNudge -> count= $count \t returnValue = $returnValue")
+        //Log.d(TAG, "checkScrollingNudge -> count= $count \t returnValue = $returnValue")
 
         if(returnValue > 0 ) {
-            checkingScrolling = true
+            checkingScrolling = true            //this disables the possibility of creating another recursion that checks for scrolling
             MainScope().launch {
                 //wait some time and check again (recursion)
                 delay(scrollingNudgeTimeout)
@@ -400,7 +464,7 @@ class MyService : AccessibilityService() {
         }
         else {
             //stop recursion
-            checkingScrolling = false
+            checkingScrolling = false       //this enables the possibility of creating again the recursion for checking scrolling in accessibility event
         }
 
     }
@@ -455,6 +519,51 @@ class MyService : AccessibilityService() {
             return 0
         }
         return -1 //already displaying scrolling nudge low
+    }
+
+    private fun checkPullingNudge(eventTime: Long) {
+        val count = countPullsInTimeWindow(eventTime)
+        val returnValue = checkThresholdsToDisplayPullingNudge(count, eventTime)
+        isPullingNudgeDisplayed = true
+
+        Log.d(TAG, "Pulling check: count: $count, returnedValue: $returnValue")
+        MainScope().launch {
+            //wait for max duration and then hide the widget
+            delay(maxDurationWidget)
+            WidgetNudge2.hideWidget()
+            isPullingNudgeDisplayed = false
+        }
+    }
+
+    private fun countPullsInTimeWindow(eventTime: Long) : Int{
+        //count pull events in time window
+        var count = 0
+        //iterate list backwards to avoid exceptions
+        for(i in pullingEvents.indices.reversed()) {
+            if(eventTime - pullingEvents[i] > pullingTimeWindow){
+                //this pulling event s is out of timewindow
+                pullingEvents.removeAt(i)
+            }
+            else {
+                count++
+            }
+        }
+        return count
+    }
+
+    private fun checkThresholdsToDisplayPullingNudge(count: Int, eventTime: Long): Int {
+        if(count >= pullingThresholdReallyFrequent){
+            WidgetNudge2.fillWidget(this, false, 2)
+            return 2
+        }
+        else if(count >= pullingThresholdFrequent){
+            WidgetNudge2.fillWidget(this, false, 1)
+            return 1
+        }
+        else{
+            WidgetNudge2.fillWidget(this, false, 0)
+            return 0
+        }
     }
 
     //USED FOR DEBUG
@@ -614,7 +723,6 @@ class MyService : AccessibilityService() {
             if(lastCurrentDate == currentDate) {
                 val list = millisSpentTiktok.split(";").map{it.toLong()}.toMutableList()
                 dailyMillisSpent[2] = list.removeLast()
-                Log.d(TAG, "Loaded daily millis = [${dailyMillisSpent[0]},${dailyMillisSpent[1]},${dailyMillisSpent[2]}]")
 
                 millisTiktok = list.average().toLong()
             }

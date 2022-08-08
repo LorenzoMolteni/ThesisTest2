@@ -36,19 +36,23 @@
 
 
     <!--Strings containing textual nudges-->
+    <!--Nudge 1-->
     <string name="scroll_nudge1_1_facebook">Infinite scrolling is one the dark patterns used by Facebook for keeping you online and earning from your attention. You can keep scrolling as much as you want, but the reward you get is variable, since the quality of the new contents cannot be predicted.</string>
     <string name="scroll_nudge1_1_instagram">Infinite scrolling is one the dark patterns used by Instagram for keeping you online and earning from your attention. You can keep scrolling as much as you want, but the reward you get is variable, since the quality of the new contents cannot be predicted.</string>
     <string name="scroll_nudge1_1_tiktok">Infinite scrolling is one the dark patterns used by TikTok for keeping you online and earning from your attention. You can keep scrolling as much as you want, but the reward you get is variable, since the quality of the new contents cannot be predicted.</string>
     <string name="scroll_nudge1_2">The infinite scrolling dark pattern used in social networks can lead you to a more passive and problematic technology overuse, causing lack of sleep, decreased communication, depression, or even obesity and ADHD. </string>
+    <!--Nudge 2-->
     <string name="scroll_nudge2_1_fast">You have been scrolling fast recently. Slow down and enjoy the contents.</string>
     <string name="scroll_nudge2_1_really_fast">You have been scrolling really fast recently. Slow down and enjoy the contents.</string>
     <string name="scroll_nudge2_2_fast">You have been scrolling fast recently. If nothing is of your interest, consider taking a break.</string>
     <string name="scroll_nudge2_2_really_fast">You have been scrolling really fast recently. If nothing is of your interest, consider taking a break.</string>
 
+    <!--Nudge 1-->
     <string name="pull_nudge1_1_facebook">Pull to refresh is one of the attention-capture dark patterns used in Facebook. It allows you to swipe down and load contents which can be new or not, as it happens in slot machines, where you can win or lose.</string>
     <string name="pull_nudge1_1_instagram">Pull to refresh is one of the attention-capture dark patterns used in Instagram. It allows you to swipe down and load contents which can be new or not, as it happens in slot machines, where you can win or lose.</string>
     <string name="pull_nudge1_1_tiktok">Pull to refresh is one of the attention-capture dark patterns used in TikTok. It allows you to swipe down and load contents which can be new or not, as it happens in slot machines, where you can win or lose.</string>
     <string name="pull_nudge1_2">The pull to refresh dark pattern used in social networks can lead you to use more technology, causing lack of sleep, decreased communication, depression, or even obesity and ADHD. </string>
+    <!--Nudge 2-->
     <string name="pull_nudge2_1">You have refreshed the contents. If you have already seen everything, just take a break.</string>
     <string name="pull_nudge2_2">Pull to refresh is like a slot machine. This time it’s a win or a loss?</string>
 </resources>

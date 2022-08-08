@@ -3,10 +3,12 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/drawable/nudge2_pulling_high1.xml" value="0.113" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/activity_main.xml" value="0.21" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/fixed_widget.xml" value="0.18614130434782608" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/textual_nudge_1.xml" value="0.225" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/widget_nudge_2.xml" value="0.1" />
+        <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/widget_nudge_2_text.xml" value="0.22" />
       </map>
     </option>
   </component>

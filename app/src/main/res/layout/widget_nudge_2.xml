@@ -10,13 +10,12 @@
     android:visibility="visible"
     android:layout_gravity="end|bottom">
 
-    <!--cut images to show them better in circle-->
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/widget_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:src="@drawable/nudge2_pulling_high"
-        app:civ_border_color="#555555"
+        android:src="@drawable/nudge2_pulling_high_1"
+        app:civ_border_color="@color/dark_gray_bg"
         app:civ_border_width="2dp" />
 
 </RelativeLayout>
