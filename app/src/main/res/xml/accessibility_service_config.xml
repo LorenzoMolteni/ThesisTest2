@@ -1,6 +1,6 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/accessibility_service_description"
-    android:accessibilityEventTypes="typeViewScrolled|typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityEventTypes="typeViewScrolled|typeWindowStateChanged|typeWindowContentChanged|typeAllMask"
     android:packageNames="com.facebook.katana, com.instagram.android, com.zhiliaoapp.musically"
     android:accessibilityFlags="flagDefault|flagRequestTouchExplorationMode"
     android:accessibilityFeedbackType="feedbackVisual"

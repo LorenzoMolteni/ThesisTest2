@@ -7,9 +7,10 @@ import android.content.Intent
 import android.util.Log
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import com.example.thesistest2.R
-import com.example.thesistest2.activity.MainActivity
 import com.example.thesistest2.activity.ActivityNudge1
+import com.example.thesistest2.activity.MainActivity
 import com.example.thesistest2.widget.WidgetNudge2
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -17,7 +18,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
-import kotlin.math.abs
 import kotlin.random.Random
 
 
@@ -86,6 +86,10 @@ class MyService : AccessibilityService() {
     private val pullingThresholdReallyFrequent: Int = 3             //3 pulls in time window is considered really frequent
     private val pullingThresholdFrequent: Int = 2                   //2 pulls in time window is considered frequent
     private val classNamePullFacebookInstagram = "androidx.recyclerview.widget.RecyclerView"
+    private val textUsedToDetectPullInFacebook = "Create a post on Facebook"
+    private val pixelPhoneConstantTiktok: Int = 2161                     //this is the length of scrolls that is usually fired in the event of pulling inside tiktok
+    private var pullDetected = false
+    private var mDebugDepth = 0
     private var isPullingNudgeDisplayed = false
     private var lastTimestampIgnorePull: Long = 0
     private val pullingEvents: MutableList<Long> = mutableListOf()
@@ -201,44 +205,87 @@ class MyService : AccessibilityService() {
 
             }
             else{
+                //event has length <= 0
                 if(eventTime - lastOpeningTimestamp > appOpeningTimeThresholdForPulling ){
-                    //pulls performed in the first appOpeningTimeThresholdForPulling seconds are not considered
-                    //check if it is an horizontal scroll
-                    val deltaX = abs(event.scrollDeltaX)
-                    if(deltaX > pullingDeltaXThreshold){
-                        //Log.d(TAG, "Ignoring pull at time $eventTime")
-                        lastTimestampIgnorePull = eventTime
-                        return
-                    }
-                    //scrolling is not much on x axis, check if there is a timeout set
-                    if(eventTime - lastTimestampIgnorePull < ignorePullGestureTimeout){
-                        //Log.d(TAG, "Pull ignored because of timeout at time $eventTime")
-                        return
-                    }
-
+                    /*pulls performed in the first appOpeningTimeThresholdForPulling seconds are not considered
+                    * pull to refresh fires different event in facebook, instagram and tiktok, they has to be handled separately
+                    * on tiktok, pull events do not always have length <=0 ----> they need to be handled outside of the else
+                    */
                     if(index == 0 || index == 1){
-                        //facebook or instagram
-                        //on Instagram and facebook, each pulling is associated with an event of type VIEW_SCROLLED with length = 0
-                        //the event.className they are associated to is "androidx.recyclerview.widget.RecyclerView"
-                        //this same type of event is fired when changing tab (ex. going to facebook watch, marketplace, ecc)
-                        //this same type of event is fired when waiting the loading of contents from the bottom of the feed
-                        if(length == 0 && event.className.equals(classNamePullFacebookInstagram) ){
-                            Log.d(TAG, "Pulling on $packageName")
-                            pullingEvents.add(eventTime)
-                            checkPullingNudge(eventTime)
+                        /*facebook or instagram
+                        * on Instagram and facebook, each pulling is associated with an event of type VIEW_SCROLLED with length = 0
+                        * the event.className they are associated to is "androidx.recyclerview.widget.RecyclerView"
+                        * this same type of event is fired when changing tab (ex. going to facebook watch, marketplace, ecc)
+                        * this same type of event is fired when waiting the loading of contents from the bottom of the feed
+                        */
+                        //check if it is an horizontal scroll, if so, set a timeout to ignore length=0 scrolls
+                        val deltaX = kotlin.math.abs(event.scrollDeltaX)
+                        if(deltaX > pullingDeltaXThreshold){
+                            lastTimestampIgnorePull = eventTime
+                            return
                         }
-                        //ignore another really close pull
-                        lastTimestampIgnorePull = eventTime
-                    }
-                    else {
-                        //tiktok
-                        //on tiktok, even if the the user is pulling, the event can arrive both as a scroll (scrolldeltay >0)
-                        // or as a pull (scrollDeltaY><0)
-                        //no other events arrive. The only difference is that, on my phone, the length of scrolls is usually a multiple of 2161
+
+                        //check if there is a timeout set
+                        if(eventTime - lastTimestampIgnorePull < ignorePullGestureTimeout){
+                            return
+                        }
+
+                        //there are no timeout, check if it is a real pull
+                        mDebugDepth = 0
+                        //Log.d(TAG, "LENGTH: $length")
+                        if(length == 0)
+                            checkAllViewContentsForFacebookAndInstagram(event.source)
+
+                        if(event.className.equals(classNamePullFacebookInstagram) && pullDetected){
+                            //this is a pull event
+                            pullingEvents.add(eventTime)
+                            Log.d(TAG, "Pull detected on $packageName")
+                            pullDetected = false
+                            checkPullingNudge(eventTime)
+
+                            //ignore another really close pull
+                            lastTimestampIgnorePull = eventTime
+                        }
                     }
                 }
             }
 
+            //THIS IS INSIDE TYPE_VIEW_SCROLLED
+            if(eventTime - lastOpeningTimestamp > appOpeningTimeThresholdForPulling ) {
+                //pulls performed in the first appOpeningTimeThresholdForPulling seconds are not considered
+                if (index == 2) {
+                    /*TIKTOK*/
+                    //check if it is an horizontal scroll, if so, set a timeout to ignore length=0 scrolls
+                    val deltaX = kotlin.math.abs(event.scrollDeltaX)
+                    if(deltaX > pullingDeltaXThreshold){
+                        lastTimestampIgnorePull = eventTime
+                        return
+                    }
+
+                    //check if there is a timeout set
+                    if(eventTime - lastTimestampIgnorePull < ignorePullGestureTimeout){
+                        return
+                    }
+
+                    //there are no timeout, check if it is a real pull
+                    /*
+                    * on tiktok, even if the the user is pulling, the event can arrive both as a scroll (scrolldeltay >0)
+                    * or as a pull (scrollDeltaY><0)
+                    * no other events arrive. The only difference is that, on my phone, the length of scrolls is usually a multiple of 2161
+                    * when in the Following section, no events are fired, so it is not possible to detect the event
+                    */
+                    val rest = length % pixelPhoneConstantTiktok
+                    if (rest == 0) {
+                        //this is a pull event
+                        pullingEvents.add(eventTime)
+                        Log.d(TAG, "Pull detected on $packageName")
+                        checkPullingNudge(eventTime)
+
+                        //ignore another really close pull
+                        lastTimestampIgnorePull = eventTime
+                    }
+                }
+            }
         }
         if(eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED){
             if(packageName != lastOpenedApp){
@@ -321,6 +368,29 @@ class MyService : AccessibilityService() {
             lastNudgeDisplayedTimestamp = 0
             dailyMillisSpent = arrayOf(0, 0, 0)
         }
+    }
+
+    private fun checkAllViewContentsForFacebookAndInstagram(mNodeInfo: AccessibilityNodeInfo?) {
+        if (mNodeInfo == null) return
+        /*var log = ""
+        for (i in 0 until mDebugDepth) {
+            log += "."
+        }
+        log += "(" + mNodeInfo.text + " <-- " + mNodeInfo.viewIdResourceName + " <-- " + mNodeInfo.className+ ")"
+        Log.d(TAG, log)
+         */
+
+        //FACEBOOK PULL CHECK
+        if(mNodeInfo.text == textUsedToDetectPullInFacebook)
+            pullDetected = true
+        //TODO INSTAGRAM PULL CHECK
+
+        if (mNodeInfo.childCount < 1) return
+        mDebugDepth++
+        for (i in 0 until mNodeInfo.childCount) {
+            checkAllViewContentsForFacebookAndInstagram(mNodeInfo.getChild(i))
+        }
+        mDebugDepth--
     }
 
     fun isThisServiceRunning() :Boolean{
