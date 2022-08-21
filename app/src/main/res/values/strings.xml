@@ -28,6 +28,10 @@
     <string name="switch_back_label">Use custom text for closing app</string>
     <string name="custom_label">Write your custom label</string>
     <string name="preview">Preview</string>
+    <string name="enable_accessibility_service">Enable service</string>
+    <string name="enable_accessibility_service_explanation">This app needs you to manually enable an accessibility service from settings. Doing so, NudgeApp will be able to collect information about how you use Facebook, Instagram and TikTok, and provide nudges that will help you in making more conscious decisions while using technology. \nClick below -> Downloaded apps -> NudgeApp -> Enable</string>
+    <string name="service_explanation_already_running">Service is already running. If you see a permanent notification from NudgeApp, everything is working correctly.</string>
+    <string name="go_to_accessibility">Go to accessibility menu</string>
 
 
     <!--default strings for buttons -->
@@ -55,4 +59,8 @@
     <!--Nudge 2-->
     <string name="pull_nudge2_1">You have refreshed the contents. If you have already seen everything, just take a break.</string>
     <string name="pull_nudge2_2">Pull to refresh is like a slot machine. This time it’s a win or a loss?</string>
+
+    <!--Strings used to detect pull gestures in home screen in social media-->
+    <string name="text_pull_detection_facebook">Create a post on Facebook</string>
+    <string name="text_pull_detection_instagram">Your story</string>
 </resources>

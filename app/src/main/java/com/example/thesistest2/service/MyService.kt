@@ -81,13 +81,15 @@ class MyService : AccessibilityService() {
     //pulling
     private val appOpeningTimeThresholdForPulling : Long = 10000    //10 seconds timeout where pulls are not considered
     private val pullingTimeWindow: Long = 600000                    //10 minutes time window for pulling
-    private val ignorePullGestureTimeout: Long = 2000               //2 seconds timeout used for ignoring subsequent pulls or horizontal gestures
+    private val ignorePullGestureTimeout: Long = 500                //0.5 seconds timeout used for ignoring subsequent pulls or horizontal gestures
     private val pullingDeltaXThreshold: Int = 50                    //if scroll event has a deltaX higher than threshold, it is not considered a pull
     private val pullingThresholdReallyFrequent: Int = 3             //3 pulls in time window is considered really frequent
     private val pullingThresholdFrequent: Int = 2                   //2 pulls in time window is considered frequent
     private val classNamePullFacebookInstagram = "androidx.recyclerview.widget.RecyclerView"
-    private val textUsedToDetectPullInFacebook = "Create a post on Facebook"
-    private val pixelPhoneConstantTiktok: Int = 2161                     //this is the length of scrolls that is usually fired in the event of pulling inside tiktok
+    private var textUsedToDetectPullInFacebook = ""
+    private var textUsedToDetectPullInInstagram = ""
+    private var pixelPhoneConstantTiktok: Int? = null                     //this is the length of scrolls that is usually fired in the event of pulling inside tiktok
+    private val pixelPhoneConstantCandidates: MutableList<Pair<Long, Int>> = mutableListOf()
     private var pullDetected = false
     private var mDebugDepth = 0
     private var isPullingNudgeDisplayed = false
@@ -120,10 +122,15 @@ class MyService : AccessibilityService() {
         // Notification ID cannot be 0.
         startForeground(ONGOING_NOTIFICATION_ID, notification)
 
-        //set display metrics
+        //load data from resources
+        textUsedToDetectPullInFacebook = resources.getString(R.string.text_pull_detection_facebook)
+        textUsedToDetectPullInInstagram = resources.getString(R.string.text_pull_detection_instagram)
+
+        //get the screen height
         val display = (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay
         screenHeight = display.height
 
+        Log.d(TAG, "ScreenHeight: $screenHeight \ttextLoaded: $textUsedToDetectPullInFacebook ; $textUsedToDetectPullInInstagram")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -206,6 +213,8 @@ class MyService : AccessibilityService() {
             }
             else{
                 //event has length <= 0
+                Log.d(TAG, "LENGTH: $length")
+
                 if(eventTime - lastOpeningTimestamp > appOpeningTimeThresholdForPulling ){
                     /*pulls performed in the first appOpeningTimeThresholdForPulling seconds are not considered
                     * pull to refresh fires different event in facebook, instagram and tiktok, they has to be handled separately
@@ -225,6 +234,11 @@ class MyService : AccessibilityService() {
                             return
                         }
 
+                        if(length < 0){
+                            lastTimestampIgnorePull = eventTime
+                            return
+                        }
+
                         //check if there is a timeout set
                         if(eventTime - lastTimestampIgnorePull < ignorePullGestureTimeout){
                             return
@@ -232,7 +246,6 @@ class MyService : AccessibilityService() {
 
                         //there are no timeout, check if it is a real pull
                         mDebugDepth = 0
-                        //Log.d(TAG, "LENGTH: $length")
                         if(length == 0)
                             checkAllViewContentsForFacebookAndInstagram(event.source)
 
@@ -269,20 +282,33 @@ class MyService : AccessibilityService() {
 
                     //there are no timeout, check if it is a real pull
                     /*
-                    * on tiktok, even if the the user is pulling, the event can arrive both as a scroll (scrolldeltay >0)
-                    * or as a pull (scrollDeltaY><0)
+                    * on tiktok, even if the the user is pulling, the event can arrive both as a scroll (scrolldeltay > 0)
+                    * or as a pull (scrollDeltaY < 0)
                     * no other events arrive. The only difference is that, on my phone, the length of scrolls is usually a multiple of 2161
                     * when in the Following section, no events are fired, so it is not possible to detect the event
                     */
-                    val rest = length % pixelPhoneConstantTiktok
-                    if (rest == 0) {
-                        //this is a pull event
-                        pullingEvents.add(eventTime)
-                        Log.d(TAG, "Pull detected on $packageName")
-                        checkPullingNudge(eventTime)
+                    //pixelPhoneConstantTiktok vary depending on phone
+                    //Lorenzo phone 2161, screenHeight 2252
+                    //Jessica phone 2086, screenHeight 2221
+                    Log.d(TAG, "LENGTH: $length")
+                    if(pixelPhoneConstantTiktok == null){
+                        //try to understand the pixel constant for this
+                        //exploit the fact that on tiktok each scroll fires multiple TYPE_VIEW_SCROLLED, except the pull to refresh
+                        pixelPhoneConstantCandidates.add(Pair(eventTime, kotlin.math.abs(length)))
+                        checkPixelCandidates()
+                    }
+                    else {
+                        val rest = length % (pixelPhoneConstantTiktok!!)
+                        if (rest == 0) {
+                            checkAllViewContentsForFacebookAndInstagram(event.source)
+                            //this is a pull event
+                            pullingEvents.add(eventTime)
+                            Log.d(TAG, "Pull detected on $packageName")
+                            checkPullingNudge(eventTime)
 
-                        //ignore another really close pull
-                        lastTimestampIgnorePull = eventTime
+                            //ignore another really close pull
+                            lastTimestampIgnorePull = eventTime
+                        }
                     }
                 }
             }
@@ -370,20 +396,46 @@ class MyService : AccessibilityService() {
         }
     }
 
+    private fun checkPixelCandidates() {
+        if(pixelPhoneConstantCandidates.size < 2)
+            return
+        //the first entry has to be checked separately
+        if(pixelPhoneConstantCandidates[1].first - pixelPhoneConstantCandidates[0].first > 1000 &&
+            pixelPhoneConstantCandidates[0].second < screenHeight &&
+            pixelPhoneConstantCandidates[0].second > screenHeight/2){
+                pixelPhoneConstantTiktok  = pixelPhoneConstantCandidates[0].second
+                Log.d(TAG, "PIXEL CONSTANT FOUND: $pixelPhoneConstantTiktok")
+                return
+        }
+        //loop all candidates and find a scroll whose timestamp is at least 1 second after the previous one and 1 second before the next one
+        for( i in 1..pixelPhoneConstantCandidates.size - 2){
+            if(pixelPhoneConstantCandidates[i].first - pixelPhoneConstantCandidates[i-1].first > 1000 &&
+                    pixelPhoneConstantCandidates[i+1].first - pixelPhoneConstantCandidates[i].first > 1000 &&
+                    pixelPhoneConstantCandidates[i].second < screenHeight &&
+                    pixelPhoneConstantCandidates[i].second > screenHeight/2){
+                pixelPhoneConstantTiktok  = pixelPhoneConstantCandidates[i].second
+                Log.d(TAG, "PIXEL CONSTANT FOUND: $pixelPhoneConstantTiktok")
+                return
+            }
+        }
+    }
+
     private fun checkAllViewContentsForFacebookAndInstagram(mNodeInfo: AccessibilityNodeInfo?) {
         if (mNodeInfo == null) return
-        /*var log = ""
+        var log = ""
         for (i in 0 until mDebugDepth) {
             log += "."
         }
         log += "(" + mNodeInfo.text + " <-- " + mNodeInfo.viewIdResourceName + " <-- " + mNodeInfo.className+ ")"
         Log.d(TAG, log)
-         */
+
 
         //FACEBOOK PULL CHECK
         if(mNodeInfo.text == textUsedToDetectPullInFacebook)
             pullDetected = true
-        //TODO INSTAGRAM PULL CHECK
+        //INSTAGRAM PULL CHECK
+        if(mNodeInfo.text == textUsedToDetectPullInInstagram)
+            pullDetected = true
 
         if (mNodeInfo.childCount < 1) return
         mDebugDepth++
@@ -723,6 +775,7 @@ class MyService : AccessibilityService() {
         val s1 = millisInstagram.joinToString(separator = ";")
         val s2 = millisTiktok.joinToString(separator = ";")
 
+        val tiktokConstant = pixelPhoneConstantTiktok ?: 0
         //write to shared preferences
         with (sharedPref.edit()) {
             //write lastNudgeDate to sharedPreferences
@@ -737,6 +790,10 @@ class MyService : AccessibilityService() {
             putString("millisSpentFacebook", s0)
             putString("millisSpentInstagram", s1)
             putString("millisSpentTiktok", s2)
+
+            //write tiktok constant
+            putInt("pixelPhoneConstantTikTok", tiktokConstant)
+
             apply()
         }
 
@@ -756,6 +813,14 @@ class MyService : AccessibilityService() {
 
         //get lastCurrentDate from preferences
         val lastCurrentDate = sharedPref.getString("lastCurrentDate", "")
+
+        //get tiktok constant, if present
+        val tiktokConstant = sharedPref.getInt("pixelPhoneConstantTikTok", 0)
+        if(tiktokConstant == 0)
+            pixelPhoneConstantTiktok = null
+        else
+            pixelPhoneConstantTiktok = tiktokConstant
+
         //get arrays with millis from preferences
         val millisSpentFacebook = sharedPref.getString("millisSpentFacebook", "")
         val millisSpentInstagram = sharedPref.getString("millisSpentInstagram", "")
@@ -806,7 +871,7 @@ class MyService : AccessibilityService() {
         averageMillisSpent[1] = millisInstagram
         averageMillisSpent[2] = millisTiktok
 
-        Log.d(TAG, "LoadData -> dates: ${lastNudgeDate[0]}, ${lastNudgeDate[1]}, ${lastNudgeDate[2]}\tavgs: $averageMillisSpent \tmillis: [${dailyMillisSpent[0]}, ${dailyMillisSpent[1]}, ${dailyMillisSpent[2]}]")
+        Log.d(TAG, "LoadData -> tiktokConstant: $pixelPhoneConstantTiktok \tdates: ${lastNudgeDate[0]}, ${lastNudgeDate[1]}, ${lastNudgeDate[2]}\tavgs: $averageMillisSpent \tmillis: [${dailyMillisSpent[0]}, ${dailyMillisSpent[1]}, ${dailyMillisSpent[2]}]")
     }
 
 }

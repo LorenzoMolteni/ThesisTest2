@@ -1,0 +1,67 @@
+<resources>
+    <string name="app_name">ThesisTest2</string>
+    <string name="accessibility_service_label">NudgeApp</string>
+    <string name="receiver">MyReceiver</string>
+    <string name="accessibility_service_description">Fornire consapevolezza alle persone durante il loro utilizzo della tecnologia.</string>
+
+    <string name="preference_file_key">com.example.thesistest2</string>
+    <string name="system_preference_file_key">com.example.thesistest2.myservice</string>
+
+    <!--Strings used for notification-->
+    <string name="channel_name">ThesisTestNotificationChannel</string>
+    <string name="channel_description">Notification channel for displaying notifications</string>
+    <string name="notification_title">NudgeApp</string>
+    <string name="notification_message">NudgeApp è in esecuzione in background</string>
+    <string name="notification_ticker_text">NudgeApp è in esecuzione in background</string>
+
+    <!--Strings used for requesting permissions in xiaomi or Android > 10-->
+    <string name="xiaomi_dialog_title">Abilita i permessi</string>
+    <string name="xiaomi_dialog_text">Questa app non funzionerà se tu non abiliti i permessi per mostrare finestre pop-up, anche durante la sua esecuzione in background.</string>
+    <string name="give_permissions">Vai ai permessi</string>
+    <!--Strings used for displaying toasts related to permissions-->
+    <string name="permissions_granted_message">Grazie per aver garantito i permessi.</string>
+    <string name="permissions_not_granted_message">Dai i tuoi permessi, altrimenti questa app non funzionerà.</string>
+
+    <!--Strings in settings activity-->
+    <string name="settings_label">Impostazioni</string>
+    <string name="switch_open_label">Utilizza un testo personalizzato per aprire le app</string>
+    <string name="switch_back_label">Utilizza un testo personalizzato per chiudere le app</string>
+    <string name="custom_label">Scrivi la tua label personalizzata</string>
+    <string name="preview">Anteprima</string>
+    <string name="enable_accessibility_service">Abilita il servizio</string>
+    <string name="enable_accessibility_service_explanation">Questa app necessita che tu abiliti il suo servizio di accessibilità dalle impostazioni. NudgeApp potrà collezionare informazioni su come utilizzi Facebook, Instagram e TikTok, e ti fornirà dei nudge che ti aiuteranno a prendere decisioni più consce durante il tuo utilizzo della tecnologia.\nClicca qui sotto -> Servizi scaricati -> NudgeApp -> Abilita</string>
+    <string name="service_explanation_already_running">Il servizio è in esecuzione. Se vedi una notifica permanente da NudgeApp, tutto sta funzionando correttamente.</string>
+    <string name="go_to_accessibility">Vai al menu di accessibilità</string>
+
+
+    <!--default strings for buttons -->
+    <string name="open_button_label">Continua</string>
+    <string name="back_button_label">Esci</string>
+
+
+    <!--Strings containing textual nudges-->
+    <!--Nudge 1-->
+    <string name="scroll_nudge1_1_facebook">Infinite scrolling è uno dei dark pattern usati da Facebook per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
+    <string name="scroll_nudge1_1_instagram">Infinite scrolling è uno dei dark pattern usati da Instagram per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
+    <string name="scroll_nudge1_1_tiktok">Infinite scrolling è uno dei dark pattern usati da TikTok per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
+    <string name="scroll_nudge1_2">Il dark pattern "infinire scrolling" usato nei social network può portarti ad adottare un uso della tecnologia più passivo e problematico, causando mancanza di sonno, diminuzione della comunicazione, depressione, ed anche obesità e ADHD.</string>
+    <!--Nudge 2-->
+    <string name="scroll_nudge2_1_fast">Hai scrollato velocemente ultimamente. Rallenta e goditi i contenuti.</string>
+    <string name="scroll_nudge2_1_really_fast">Hai scrollato molto velocemente ultimamente. Rallenta e goditi i contenuti.</string>
+    <string name="scroll_nudge2_2_fast">Hai scrollato velocemente ultimamente. Se nulla è di tuo interesse, prenditi una pausa.</string>
+    <string name="scroll_nudge2_2_really_fast">Hai scrollato molto velocemente ultimamente. Se nulla è di tuo interesse, prenditi una pausa.</string>
+
+    <!--Nudge 1-->
+    <string name="pull_nudge1_1_facebook">Pull to refresh è uno dei dark pattern cattura-attenzione usati su Facebook. Ti permette di fare swipe down e caricare contenuti, che possono essere nuovi o già visti, come avviene nelle slot machine, dove puoi vincere o perdere.</string>
+    <string name="pull_nudge1_1_instagram">Pull to refresh è uno dei dark pattern cattura-attenzione usati su Instagram. Ti permette di fare swipe down e caricare contenuti, che possono essere nuovi o già visti, come avviene nelle slot machine, dove puoi vincere o perdere.</string>
+    <string name="pull_nudge1_1_tiktok">Pull to refresh è uno dei dark pattern cattura-attenzione usati su TikTok. Ti permette di fare swipe down e caricare contenuti, che possono essere nuovi o già visti, come avviene nelle slot machine, dove puoi vincere o perdere.</string>
+    <string name="pull_nudge1_2">Il dark pattern "pull to refresh" usato nei social network può portarti ad usare di più la tecnologia, causando mancanza di sonno, diminuzione della comunicazione, depressione, e anche obesità e ADHD. </string>
+
+    <!--Nudge 2-->
+    <string name="pull_nudge2_1">Hai ricaricato i contenuti. Se hai già visto tutto, prenditi una pausa.</string>
+    <string name="pull_nudge2_2">Il pull to refresh è come una slot machine. Stavolta hai vinto o hai perso?</string>
+
+    <!--Strings used to detect pull gestures in home screen in social media-->
+    <string name="text_pull_detection_facebook">Crea un post su Facebook</string>
+    <string name="text_pull_detection_instagram">La tua storia</string>
+</resources>

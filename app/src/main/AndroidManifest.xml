@@ -49,6 +49,17 @@
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
         </service>
+        <receiver
+            android:name=".receiver.MyReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED" >
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

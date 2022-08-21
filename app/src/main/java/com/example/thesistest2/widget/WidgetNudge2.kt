@@ -15,6 +15,9 @@ import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import com.example.thesistest2.R
 import de.hdodenhof.circleimageview.CircleImageView
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 @SuppressLint("StaticFieldLeak")
@@ -186,6 +189,16 @@ object WidgetNudge2 {
     }
 
     fun hideWidget() {
+        if(isTextualNudgeShown){
+            //if textualNudge is shown, wait more time before hiding to allow people reading
+            MainScope().launch {
+                delay(4000)
+                isTextualNudgeShown = false
+                hideWidget()
+            }
+            return
+        }
+
         this.isTextualNudgeShown = false
         frameLayout?.visibility = View.GONE
         frameLayoutTextualNudge?.visibility = View.GONE

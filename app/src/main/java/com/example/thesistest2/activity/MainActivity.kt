@@ -1,21 +1,26 @@
 package com.example.thesistest2.activity
 
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
-import android.util.Log
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.AppCompatButton
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.widget.doAfterTextChanged
 import com.example.thesistest2.R
+import com.example.thesistest2.service.MyService
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -195,6 +200,20 @@ class MainActivity : Activity() {
             else backButton.text = resources.getString(R.string.back_button_label)
         }
 
+        val serviceEnabled = isAccessibilityServiceEnabled(this, MyService::class.java)
+        if(serviceEnabled){
+            //change text shown to user
+            val accessibilityServiceExplanation = findViewById<TextView>(R.id.accessibility_service_explanation)
+            accessibilityServiceExplanation.text = resources.getString(R.string.service_explanation_already_running)
+        }
+
+        //add click listener on button for going to accessibility menu
+        val accessibilityButton = findViewById<AppCompatButton>(R.id.accessibility_button)
+        accessibilityButton.setOnClickListener {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+        }
+
 
     }
 
@@ -227,5 +246,20 @@ class MainActivity : Activity() {
     }
     private fun showErrorToast() {
         Toast.makeText(baseContext, R.string.permissions_not_granted_message,Toast.LENGTH_LONG).show()
+    }
+
+    fun isAccessibilityServiceEnabled(
+        context: Context,
+        service: Class<out AccessibilityService?>
+    ): Boolean {
+        val am = context.getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices =
+            am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        for (enabledService in enabledServices) {
+            val enabledServiceInfo: ServiceInfo = enabledService.resolveInfo.serviceInfo
+            if (enabledServiceInfo.packageName.equals(context.packageName) && enabledServiceInfo.name.equals(service.name) )
+                return true
+        }
+        return false
     }
 }
