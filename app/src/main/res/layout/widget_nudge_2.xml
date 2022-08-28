@@ -16,7 +16,27 @@
         android:layout_height="match_parent"
         android:src="@drawable/nudge2_pulling_high_1"
         app:civ_border_color="@color/dark_gray_bg"
-        app:civ_border_width="2dp" />
+        app:civ_border_width="2dp"
+        android:visibility="gone"/>
+
+    <com.github.anastr.speedviewlib.ImageSpeedometer
+        android:id="@+id/speedView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:sv_indicator="NeedleIndicator"
+        app:sv_indicatorColor="@color/speedometer_indicator"
+        app:sv_image="@drawable/speedometer_base_no_bg"
+        app:sv_startDegree="180"
+        app:sv_endDegree="360"
+        app:sv_speedTextColor="@android:color/transparent"
+        app:sv_unitTextColor="@android:color/transparent"
+        app:sv_backgroundCircleColor="@color/light_gray_bg"
+        app:sv_centerCircleRadius="4dp"
+        app:sv_withTremble="false"
+        app:sv_minSpeed="0"
+        app:sv_maxSpeed="100"
+        app:sv_textColor="@android:color/transparent"
+        android:visibility="visible"/>
 
 </RelativeLayout>
 

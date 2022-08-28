@@ -14,6 +14,9 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import com.example.thesistest2.R
+import com.github.anastr.speedviewlib.ImageSpeedometer
+import com.github.anastr.speedviewlib.PointerSpeedometer
+import com.github.anastr.speedviewlib.SpeedView
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -78,24 +81,33 @@ object WidgetNudge2 {
         //generate random number to decide the string to get from resources
         val rand = rand.nextInt(0, 2) // 0 <= rand <= 1
 
-        //change image depending on isScroll and type
+        //change image depending on isScroll and count
         val image = frameLayout!!.findViewById<CircleImageView>(R.id.widget_image)
+        val speedView = frameLayout!!.findViewById<ImageSpeedometer>(R.id.speedView)
+
         if(isScroll){
-            //type = 0 -> normal, 1 -> fast, 2 -> really fast
+            //hide image and show speedView
+            image.visibility = View.GONE
+            speedView.visibility = View.VISIBLE
+
+            //type = 0 low, 1 mid, 2 high
             when(type){
                 0 -> {
-                    image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_low_1, context.theme))
+                    speedView.speedTo(5F, 2000)
+                    //image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_low_1, context.theme))
                     this.currentTextualNudge = null         //when showing scrolling low, disable textual nudge
                 }
                 1 -> {
-                    image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_mid_1, context.theme))
+                    speedView.speedTo(50F, 2000)
+                    //image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_mid_1, context.theme))
                     //get textual nudge from resources depending on random number
                     if(rand == 0)
                         this.currentTextualNudge = context.getString(R.string.scroll_nudge2_1_fast)
                     else this.currentTextualNudge = context.getString(R.string.scroll_nudge2_2_fast)
                 }
                 else -> {
-                    image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_high_1, context.theme))
+                    speedView.speedTo(95F, 2000)
+                    //image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_high_1, context.theme))
                     //get textual nudge from resources depending on random number
                     if(rand == 0)
                         this.currentTextualNudge = context.getString(R.string.scroll_nudge2_1_really_fast)
@@ -104,7 +116,11 @@ object WidgetNudge2 {
             }
         }
         else {
-            //type = 0 -> normal, 1 -> frequent, 2 -> really frequent
+            //hide speedView and show image
+            image.visibility = View.VISIBLE
+            val speedView = frameLayout!!.findViewById<ImageSpeedometer>(R.id.speedView)
+            speedView.visibility = View.GONE
+            //count = 0 -> normal, 1 -> frequent, 2 -> really frequent
             when(type){
                 0 -> {
                     image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_pulling_low_1, context.theme))
@@ -125,6 +141,14 @@ object WidgetNudge2 {
 
         //when clicking on the widget, the explanation is shown/hidden
         image.setOnClickListener {
+            if(this.isTextualNudgeShown)
+                hideTextualNudge()
+            else
+                showTextualNudge(context)
+        }
+
+        //when clicking on the speedometer, the explanation is shown/hidden
+        speedView.setOnClickListener {
             if(this.isTextualNudgeShown)
                 hideTextualNudge()
             else

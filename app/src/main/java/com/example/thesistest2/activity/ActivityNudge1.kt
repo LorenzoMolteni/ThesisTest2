@@ -7,10 +7,10 @@ import android.os.Bundle
 import android.text.Editable
 import android.util.Log
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
 import com.example.thesistest2.R
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.android.material.textfield.TextInputEditText
+import pl.droidsonroids.gif.GifImageView
 
 
 class ActivityNudge1 : Activity() {
@@ -20,10 +20,22 @@ class ActivityNudge1 : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.textual_nudge_1)
 
+        //getting openedAppLabel from intent
+        val openedAppLabel = intent.getStringExtra("openedAppLabel")
+        findViewById<TextView>(R.id.openedAppLabel).text = openedAppLabel
+
+        //getting nudgeType from intent
+        val nudgeTYpe = intent.getIntExtra("nudgeType", 0)
+        //set gif depending on nudge type
+        val gif = findViewById<GifImageView>(R.id.gif)
+        when(nudgeTYpe){
+            0 -> gif.setImageResource(R.drawable.infinite_scrolling_gif)
+            else -> gif.setImageResource(R.drawable.pull_to_refresh_gif)
+        }
+
         //setting nudge in view
         val nudge = intent.getStringExtra("nudge")
         findViewById<TextView>(R.id.textualNudge).text = nudge
-
 
     }
 

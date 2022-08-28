@@ -9,4 +9,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="light_gray_bg">#cdcdcd</color>
     <color name="dark_gray_bg">#a7a7a7</color>
+    <color name="speedometer_green">#00b558</color>
+    <color name="speedometer_yellow">#fef200</color>
+    <color name="speedometer_red">#eb4326</color>
+    <color name="speedometer_indicator">#3e3e40</color>
 </resources>
