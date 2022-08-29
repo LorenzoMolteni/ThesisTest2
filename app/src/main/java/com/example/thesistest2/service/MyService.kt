@@ -113,7 +113,7 @@ class MyService : AccessibilityService() {
         val notification: Notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getText(R.string.notification_title))
             .setContentText(getText(R.string.notification_message))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.app_icon)
             .setContentIntent(pendingIntent)
             .setTicker(getText(R.string.notification_ticker_text))
             .build()

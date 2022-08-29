@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ThesisTest2</string>
+    <string name="app_name">NudgeApp</string>
     <string name="accessibility_service_label">NudgeApp</string>
     <string name="receiver">MyReceiver</string>
     <string name="accessibility_service_description">Nudging people towards better decisions in their usage of technology</string>
@@ -64,4 +64,5 @@
     <!--Strings used to detect pull gestures in home screen in social media-->
     <string name="text_pull_detection_facebook">Create a post on Facebook</string>
     <string name="text_pull_detection_instagram">Your story</string>
+    <string name="app_icon_description">App icon</string>
 </resources>

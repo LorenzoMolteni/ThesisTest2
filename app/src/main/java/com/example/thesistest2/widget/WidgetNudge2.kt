@@ -79,7 +79,8 @@ object WidgetNudge2 {
         this.type = type
 
         //generate random number to decide the string to get from resources
-        val rand = rand.nextInt(0, 2) // 0 <= rand <= 1
+        var random = rand.nextInt(0, 200) // 0 <= rand <= 199
+        random = random % 2         // random = 0 or 1
 
         //change image depending on isScroll and count
         val image = frameLayout!!.findViewById<CircleImageView>(R.id.widget_image)
@@ -101,7 +102,7 @@ object WidgetNudge2 {
                     speedView.speedTo(50F, 2000)
                     //image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_mid_1, context.theme))
                     //get textual nudge from resources depending on random number
-                    if(rand == 0)
+                    if(random == 0)
                         this.currentTextualNudge = context.getString(R.string.scroll_nudge2_1_fast)
                     else this.currentTextualNudge = context.getString(R.string.scroll_nudge2_2_fast)
                 }
@@ -109,7 +110,7 @@ object WidgetNudge2 {
                     speedView.speedTo(95F, 2000)
                     //image.setImageDrawable(ResourcesCompat.getDrawable(context.resources, R.drawable.nudge2_scrolling_high_1, context.theme))
                     //get textual nudge from resources depending on random number
-                    if(rand == 0)
+                    if(random == 0)
                         this.currentTextualNudge = context.getString(R.string.scroll_nudge2_1_really_fast)
                     else this.currentTextualNudge = context.getString(R.string.scroll_nudge2_2_really_fast)
                 }
@@ -118,7 +119,6 @@ object WidgetNudge2 {
         else {
             //hide speedView and show image
             image.visibility = View.VISIBLE
-            val speedView = frameLayout!!.findViewById<ImageSpeedometer>(R.id.speedView)
             speedView.visibility = View.GONE
             //count = 0 -> normal, 1 -> frequent, 2 -> really frequent
             when(type){
@@ -134,7 +134,7 @@ object WidgetNudge2 {
             }
             //in case of pull, textual nudges do not depend on type (normal, frequent or really frequent)
             //get textual nudge from resources depending on random number
-            if(rand == 0)
+            if(random == 0)
                 this.currentTextualNudge = context.getString(R.string.pull_nudge2_1)
             else this.currentTextualNudge = context.getString(R.string.pull_nudge2_2)
         }
