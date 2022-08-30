@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">NudgeApp</string>
     <string name="accessibility_service_label">NudgeApp</string>
-    <string name="receiver">MyReceiver</string>
     <string name="accessibility_service_description">Nudging people towards better decisions in their usage of technology</string>
 
     <string name="preference_file_key">com.example.thesistest2</string>
@@ -62,7 +61,7 @@
     <string name="pull_nudge2_2">Pull to refresh is like a slot machine. This time it’s a win or a loss?</string>
 
     <!--Strings used to detect pull gestures in home screen in social media-->
-    <string name="text_pull_detection_facebook">Create a post on Facebook</string>
-    <string name="text_pull_detection_instagram">Your story</string>
+    <string name="text_pull_detection_facebook">facebook</string>
+    <string name="text_pull_detection_instagram">story</string>
     <string name="app_icon_description">App icon</string>
 </resources>

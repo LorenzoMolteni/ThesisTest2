@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">NudgeApp</string>
     <string name="accessibility_service_label">NudgeApp</string>
-    <string name="receiver">MyReceiver</string>
     <string name="accessibility_service_description">Fornire consapevolezza alle persone durante il loro utilizzo della tecnologia.</string>
 
     <string name="preference_file_key">com.example.thesistest2</string>
@@ -46,7 +45,7 @@
     <string name="scroll_nudge1_1_facebook">Sappi che l\'infinite scrolling è uno dei dark pattern usati da Facebook per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
     <string name="scroll_nudge1_1_instagram">Sappi che l\'infinite scrolling è uno dei dark pattern usati da Instagram per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
     <string name="scroll_nudge1_1_tiktok">Sappi che l\'infinite scrolling è uno dei dark pattern usati da TikTok per mantenerti online e guadagnare dalla tua attenzione. Puoi continuare a scrollare quanto vuoi, ma la ricompensa che ottieni è variabile, poiché la qualità dei nuovi contenuti non può essere stabilita a priori.</string>
-    <string name="scroll_nudge1_2">Sappi che il dark pattern "infinire scrolling" usato nei social network può portarti ad adottare un uso della tecnologia più passivo e problematico, causando mancanza di sonno, diminuzione della comunicazione, depressione, ed anche obesità e ADHD.</string>
+    <string name="scroll_nudge1_2">Sappi che il dark pattern "infinite scrolling" usato nei social network può portarti ad adottare un uso della tecnologia più passivo e problematico, causando mancanza di sonno, diminuzione della comunicazione, depressione, ed anche obesità e ADHD.</string>
     <!--Nudge 2-->
     <string name="scroll_nudge2_1_fast">Hai scrollato velocemente ultimamente. Rallenta e goditi i contenuti.</string>
     <string name="scroll_nudge2_1_really_fast">Hai scrollato molto velocemente ultimamente. Rallenta e goditi i contenuti.</string>
@@ -64,7 +63,7 @@
     <string name="pull_nudge2_2">Il pull to refresh è come una slot machine. Stavolta hai vinto o hai perso?</string>
 
     <!--Strings used to detect pull gestures in home screen in social media-->
-    <string name="text_pull_detection_facebook">Crea un post su Facebook</string>
-    <string name="text_pull_detection_instagram">La tua storia</string>
+    <string name="text_pull_detection_facebook">facebook</string>
+    <string name="text_pull_detection_instagram">storia</string>
     <string name="app_icon_description">App icon</string>
 </resources>

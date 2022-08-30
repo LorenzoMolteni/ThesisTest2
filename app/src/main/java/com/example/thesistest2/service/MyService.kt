@@ -61,6 +61,7 @@ class MyService : AccessibilityService() {
 
     //VARIABLES FOR NUDGE 2
     private val maxDurationWidget: Long = 3000          //3seconds of max duration for widget scrolling low or pulling
+    private var stopRecursion: Boolean = false          //this is used to stop recursion for displaying scrolling nudge
 
     //scrolling
     private var screenHeight: Int = 0
@@ -172,7 +173,11 @@ class MyService : AccessibilityService() {
         val eventTime = event.eventTime
         val index = packageNamesSocialNetworks.indexOf(packageName)
         if(index == -1){
-            Log.e(TAG, "Event arrived from wrong app")
+            if(eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && !packageName.equals("com.example.thesistest2")) {
+                Log.e(TAG, "Opening a new app: $packageName")
+                //user is opening a new app
+                stopRecursion = true
+            }
             return
         }
 
@@ -436,11 +441,19 @@ class MyService : AccessibilityService() {
 
 
         //FACEBOOK PULL CHECK
-        if(mNodeInfo.text == textUsedToDetectPullInFacebook)
+        if(!mNodeInfo.text.isNullOrEmpty() && mNodeInfo.text.toString().contains(textUsedToDetectPullInFacebook, true)
+            && !mNodeInfo.className.isNullOrEmpty() && mNodeInfo.className.equals("android.widget.Button")){
+            Log.d(TAG, "${mNodeInfo.text} contains $textUsedToDetectPullInFacebook")
             pullDetected = true
+            //if(mNodeInfo.className.equals("android.widget.Button"))
+        }
+
         //INSTAGRAM PULL CHECK
-        if(mNodeInfo.text == textUsedToDetectPullInInstagram)
+        if(!mNodeInfo.text.isNullOrEmpty() && mNodeInfo.text.toString().contains(textUsedToDetectPullInInstagram, true)
+            && !mNodeInfo.className.isNullOrEmpty() && mNodeInfo.className.equals("android.widget.TextView")){
+            Log.d(TAG, "${mNodeInfo.text} contains $textUsedToDetectPullInInstagram")
             pullDetected = true
+        }
 
         if (mNodeInfo.childCount < 1) return
         mDebugDepth++
@@ -597,6 +610,13 @@ class MyService : AccessibilityService() {
         }
         if(isPullingNudgeDisplayed){
             //currently the pulling nudge is on screen, return to don't make it be overridden by scrolling nudge
+            checkingScrolling = false
+            return
+        }
+        if(stopRecursion){
+            stopRecursion = false
+            //hide widget, stop recursion
+            WidgetNudge2.hideWidget()
             checkingScrolling = false
             return
         }

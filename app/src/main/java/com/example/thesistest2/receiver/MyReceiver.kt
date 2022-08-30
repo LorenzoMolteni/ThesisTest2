@@ -4,10 +4,8 @@ package com.example.thesistest2.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import com.example.thesistest2.activity.MainActivity
-import com.example.thesistest2.service.MyService
 
 class MyReceiver : BroadcastReceiver() {
 

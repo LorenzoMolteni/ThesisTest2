@@ -15,8 +15,6 @@ import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import com.example.thesistest2.R
 import com.github.anastr.speedviewlib.ImageSpeedometer
-import com.github.anastr.speedviewlib.PointerSpeedometer
-import com.github.anastr.speedviewlib.SpeedView
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -222,6 +220,7 @@ object WidgetNudge2 {
             }
             return
         }
+
 
         this.isTextualNudgeShown = false
         frameLayout?.visibility = View.GONE
