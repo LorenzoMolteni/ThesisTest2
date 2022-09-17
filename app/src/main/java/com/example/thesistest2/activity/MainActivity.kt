@@ -5,35 +5,53 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.IntentSender
 import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
+import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityManager
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.widget.AppCompatButton
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.widget.doAfterTextChanged
 import com.example.thesistest2.R
+import com.example.thesistest2.db.Db
 import com.example.thesistest2.service.MyService
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.auth.api.identity.SignInClient
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 
 class MainActivity : Activity() {
     private val TAG = "MYACTIVITY"
     private val ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE= 2323 //needed for Android version 10 or higher
+    private var alreadySeenTutorial = false
+
+    //GOOGLE SIGN IN VARIABLES
+    private lateinit var auth: FirebaseAuth
+    private lateinit var oneTapClient: SignInClient
+    private lateinit var signInRequest: BeginSignInRequest
+    private val REQ_ONE_TAP = 200
+    //END GOOGLE SIGN IN VARIABLES
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        auth = Firebase.auth
     }
 
     override fun onResume() {
@@ -52,16 +70,10 @@ class MainActivity : Activity() {
         openText.text = Editable.Factory.getInstance().newEditable(sharedPref.getString("openText", ""))
         backText.text = Editable.Factory.getInstance().newEditable(sharedPref.getString("backText", ""))
 
+        alreadySeenTutorial = sharedPref.getBoolean("alreadySeenTutorial", false)
 
-        //check if app needs permissions (Android >10 and not already given)
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Settings.canDrawOverlays(this)){
-            //app needs permissions
-            showLayoutPermission()
-        }
-        else{
-            //app has permissions
-            showLayoutSettings()
-        }
+        updateLayout()
+
     }
 
     override fun onPause() {
@@ -79,6 +91,8 @@ class MainActivity : Activity() {
             putBoolean("switchBackActive", switchBack.isChecked)
             putString("openText", openText.text.toString())
             putString("backText", backText.text.toString())
+
+            putBoolean("alreadySeenTutorial", alreadySeenTutorial)
             apply()
         }
     }
@@ -95,9 +109,55 @@ class MainActivity : Activity() {
             else {
                 // permission Granted
                 showSuccessToast()
-                showLayoutSettings()
+                showLayoutEnableService()
             }
 
+        }
+        else if(requestCode == REQ_ONE_TAP){
+            try {
+                val credential = oneTapClient.getSignInCredentialFromIntent(data)
+                val idToken = credential.googleIdToken
+                when {
+                    idToken != null -> {
+                        // Got an ID token from Google. Use it to authenticate
+                        // with Firebase.
+                        val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+                        auth.signInWithCredential(firebaseCredential)
+                            .addOnCompleteListener(this) { task ->
+                                if (task.isSuccessful) {
+                                    val user = auth.currentUser
+                                    Log.d(TAG, "signInWithCredential:success, ${user}")
+                                    Db.createUserIfNotExists()
+                                    updateLayout()
+                                } else {
+                                    // If sign in fails, display a message to the user.
+                                    Log.w(TAG, "signInWithCredential:failure", task.exception)
+                                    Toast.makeText(this, resources.getString(R.string.login_failed_label), Toast.LENGTH_LONG).show()
+                                }
+                            }
+                    }
+                    else -> {
+                        // Shouldn't happen.
+                        Log.d(TAG, "No ID token or password!")
+                    }
+                }
+            } catch (e: ApiException) {
+                when (e.statusCode) {
+                    CommonStatusCodes.CANCELED -> {
+                        Log.d(TAG, "One-tap dialog was closed.")
+                        // Don't re-prompt the user.
+                        // showOneTapUI = false
+                    }
+                    CommonStatusCodes.NETWORK_ERROR -> {
+                        Log.d(TAG, "One-tap encountered a network error.")
+                        // Try again or just ignore.
+                    }
+                    else -> {
+                        Log.d(TAG, "Couldn't get credential from result." +
+                                " (${e.localizedMessage})")
+                    }
+                }
+            }
         }
     }
 
@@ -121,9 +181,19 @@ class MainActivity : Activity() {
     }
 
     private fun showLayoutPermission(){
-        //hide components for settings
+        //hide other layouts
         val settingsLayout = findViewById<ConstraintLayout>(R.id.layout_settings)
         settingsLayout.visibility = View.GONE
+
+        val enable_service_layout = findViewById<ConstraintLayout>(R.id.layout_enable_service)
+        enable_service_layout.visibility = View.GONE
+
+        val tutorial_layout = findViewById<ConstraintLayout>(R.id.layout_tutorial)
+        tutorial_layout.visibility = View.GONE
+
+        val login_layout = findViewById<ConstraintLayout>(R.id.layout_login)
+        login_layout.visibility = View.GONE
+
 
         //display layout permissions
         val give_permission_layout = findViewById<ConstraintLayout>(R.id.layout_permissions)
@@ -134,15 +204,148 @@ class MainActivity : Activity() {
         givePermissionBtn.setOnClickListener { requestPermission() }
 
     }
+    private fun showLayoutEnableService(){
+        //hide other layouts
+        val settingsLayout = findViewById<ConstraintLayout>(R.id.layout_settings)
+        settingsLayout.visibility = View.GONE
 
-    private fun showLayoutSettings(){
-        //hide components for requesting permissions
+        val tutorial_layout = findViewById<ConstraintLayout>(R.id.layout_tutorial)
+        tutorial_layout.visibility = View.GONE
+
         val give_permission_layout = findViewById<ConstraintLayout>(R.id.layout_permissions)
         give_permission_layout.visibility = View.GONE
+
+        val login_layout = findViewById<ConstraintLayout>(R.id.layout_login)
+        login_layout.visibility = View.GONE
+
+        //display enable service layout
+        val enable_service_layout = findViewById<ConstraintLayout>(R.id.layout_enable_service)
+        enable_service_layout.visibility = View.VISIBLE
+
+        //add listener to btn in order to open accessibility menu
+        val accessibilityButton = findViewById<AppCompatButton>(R.id.accessibility_button)
+        accessibilityButton.visibility = View.VISIBLE
+        //add click listener on button for going to accessibility menu
+        accessibilityButton.setOnClickListener {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+        }
+    }
+    private fun showLayoutTutorial() {
+        //hide other layouts
+        val settingsLayout = findViewById<ConstraintLayout>(R.id.layout_settings)
+        settingsLayout.visibility = View.GONE
+
+        val enable_service_layout = findViewById<ConstraintLayout>(R.id.layout_enable_service)
+        enable_service_layout.visibility = View.GONE
+
+        val give_permission_layout = findViewById<ConstraintLayout>(R.id.layout_permissions)
+        give_permission_layout.visibility = View.GONE
+
+        val login_layout = findViewById<ConstraintLayout>(R.id.layout_login)
+        login_layout.visibility = View.GONE
+
+        //display layout tutorial
+        val tutorial_layout = findViewById<ConstraintLayout>(R.id.layout_tutorial)
+        tutorial_layout.visibility = View.VISIBLE
+
+
+        val btn = findViewById<Button>(R.id.tutorial_button)
+
+        btn.setOnClickListener {
+            alreadySeenTutorial = true
+            showLayoutSettings()
+        }
+
+
+    }
+
+    private fun showLayoutLogin() {
+        //hide other layouts
+        val settingsLayout = findViewById<ConstraintLayout>(R.id.layout_settings)
+        settingsLayout.visibility = View.GONE
+
+        val enable_service_layout = findViewById<ConstraintLayout>(R.id.layout_enable_service)
+        enable_service_layout.visibility = View.GONE
+
+        val give_permission_layout = findViewById<ConstraintLayout>(R.id.layout_permissions)
+        give_permission_layout.visibility = View.GONE
+
+        val tutorial_layout = findViewById<ConstraintLayout>(R.id.layout_tutorial)
+        tutorial_layout.visibility = View.GONE
+
+        //show layout login
+        val login_layout = findViewById<ConstraintLayout>(R.id.layout_login)
+        login_layout.visibility = View.VISIBLE
+
+        //GOOGLE SIGN IN
+
+
+        oneTapClient = Identity.getSignInClient(this)
+        signInRequest = BeginSignInRequest.builder()
+            .setGoogleIdTokenRequestOptions(
+                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                    .setSupported(true)
+                    // Your server's client ID, not your Android client ID.
+                    .setServerClientId(getString(R.string.web_client_id))
+                    // Only show accounts previously used to sign in.
+                    .setFilterByAuthorizedAccounts(false)
+                    .build())
+            // Automatically sign in when exactly one credential is retrieved.
+            .setAutoSelectEnabled(false)
+            .build()
+
+        //click listener for the button
+        val signInButton = findViewById<com.google.android.gms.common.SignInButton>(R.id.sign_in_button)
+        signInButton.setOnClickListener {
+            oneTapClient.beginSignIn(signInRequest)
+                .addOnSuccessListener(this) { result ->
+                    try {
+                        startIntentSenderForResult(
+                            result.pendingIntent.intentSender, REQ_ONE_TAP,
+                            null, 0, 0, 0, null)
+                    } catch (e: IntentSender.SendIntentException) {
+                        Log.e(TAG, "Couldn't start One Tap UI: ${e.localizedMessage}")
+                    }
+                }
+                .addOnFailureListener(this) { e ->
+                    // No saved credentials found.
+                    // Do nothing and continue presenting the signed-out UI.
+                    Log.d(TAG, "Unable to login ${e.localizedMessage}")
+                    //showMessageLoginFailed(R.string.message_no_account)
+                    Toast.makeText(this, resources.getString(R.string.no_google_account_found), Toast.LENGTH_LONG).show()
+                }
+        }
+
+    }
+
+    private fun showLayoutSettings(){
+        //hide other layouts
+        val give_permission_layout = findViewById<ConstraintLayout>(R.id.layout_permissions)
+        give_permission_layout.visibility = View.GONE
+
+        val enable_service_layout = findViewById<ConstraintLayout>(R.id.layout_enable_service)
+        enable_service_layout.visibility = View.GONE
+
+        val tutorial_layout = findViewById<ConstraintLayout>(R.id.layout_tutorial)
+        tutorial_layout.visibility = View.GONE
+
+        val login_layout = findViewById<ConstraintLayout>(R.id.layout_login)
+        login_layout.visibility = View.GONE
+
 
         //display settings
         val settingsLayout = findViewById<ConstraintLayout>(R.id.layout_settings)
         settingsLayout.visibility = View.VISIBLE
+
+        //display button for going back to tutorial
+        val tutorialBtn = findViewById<AppCompatButton>(R.id.see_tutorial_again_button)
+        tutorialBtn.visibility = View.VISIBLE
+        tutorialBtn.setOnClickListener {
+            //go back to tutorial and hide btn
+            tutorialBtn.visibility = View.GONE
+            showLayoutTutorial()
+        }
 
 
         val switch_open = findViewById<SwitchMaterial>(R.id.switch_open)
@@ -200,21 +403,41 @@ class MainActivity : Activity() {
             else backButton.text = resources.getString(R.string.back_button_label)
         }
 
-        val serviceEnabled = isAccessibilityServiceEnabled(this, MyService::class.java)
-        if(serviceEnabled){
-            //change text shown to user
-            val accessibilityServiceExplanation = findViewById<TextView>(R.id.accessibility_service_explanation)
-            accessibilityServiceExplanation.text = resources.getString(R.string.service_explanation_already_running)
+        //add listener for button4 for closing app
+        val btn = findViewById<Button>(R.id.button4)
+        btn.setOnClickListener {
+            val startMain = Intent(Intent.ACTION_MAIN)
+            startMain.addCategory(Intent.CATEGORY_HOME)
+            startMain.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(startMain)
         }
 
-        //add click listener on button for going to accessibility menu
-        val accessibilityButton = findViewById<AppCompatButton>(R.id.accessibility_button)
-        accessibilityButton.setOnClickListener {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
+    }
+
+    private fun updateLayout() {
+        val currentUser = auth.getCurrentUser()
+        if(currentUser == null){
+            showLayoutLogin()
         }
+        else {
+            //check if app needs permissions (Android >10 and not already given)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Settings.canDrawOverlays(this)) {
+                //app needs permissions
+                showLayoutPermission()
+            } else {
+                //app has permissions
+                //showLayoutSettings()
+                if (isAccessibilityServiceEnabled(this, MyService::class.java)) {
+                    if (alreadySeenTutorial) {
+                        showLayoutSettings()
+                    } else
+                        showLayoutTutorial()
+                } else {
+                    showLayoutEnableService()
+                }
 
-
+            }
+        }
     }
 
     private fun updateUI(switch_open: SwitchMaterial, switch_back: SwitchMaterial) {

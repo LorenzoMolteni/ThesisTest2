@@ -11,6 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.example.thesistest2.R
 import com.example.thesistest2.activity.ActivityNudge1
 import com.example.thesistest2.activity.MainActivity
+import com.example.thesistest2.db.Db
 import com.example.thesistest2.widget.WidgetNudge2
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -30,6 +31,7 @@ class MyService : AccessibilityService() {
     private val rand = Random(122344566)
     private var currentDate: String = ""
 
+
     //this packageNames are already set in accessibility_service_config file, it's a double check
     private val packageNamesSocialNetworks =
         listOf(
@@ -42,7 +44,8 @@ class MyService : AccessibilityService() {
     //this is the minimum time that has to pass between two nudges to be displayed
     private val minMillisInterval = 60000    //1 min debugging       // 1 hour = 3600000
     //this is the minimum time that a user has to spent on a social network before the nudge is shown
-    private val minMillisSpent = 30000       //30sec debugging       //30 min  = 1800000
+    //for testing purposes with users, this is no more used -> Nudge1 can appear at the first opening
+    //private val minMillisSpent = 30000       //30sec debugging       //30 min  = 1800000
 
     //this is used for detecting when an app is reopened
     private val thresholdValueAppOpening = 120000                    //2min = 120000 millis
@@ -97,6 +100,18 @@ class MyService : AccessibilityService() {
     private var isPullingNudgeDisplayed = false
     private var lastTimestampIgnorePull: Long = 0
     private val pullingEvents: MutableList<Long> = mutableListOf()
+
+    //number of daily green, yellow and red pulls for the 3 social networks
+    private var dailyGreenPulls: Array<Long> = arrayOf(0, 0, 0)
+    private var dailyYellowPulls: Array<Long> = arrayOf(0, 0, 0)
+    private var dailyRedPulls: Array<Long> = arrayOf(0, 0, 0)
+
+    //important events for calculating time passed scrolling "green", "yellow" and "red"
+    //type can be "green", "yellow", "red", "open" and "close"
+    private var importantFacebookEvents: MutableList<Pair<String, Long>> = mutableListOf()
+    private var importantInstagramEvents: MutableList<Pair<String, Long>> = mutableListOf()
+    private var importantTiktokEvents: MutableList<Pair<String, Long>> = mutableListOf()
+
 
 
 
@@ -156,6 +171,13 @@ class MyService : AccessibilityService() {
         if (lastOpenedApp!= ""){
             val index = packageNamesSocialNetworks.indexOf(lastOpenedApp)
             dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
+
+            //update important events putting lastInteractionTimestamp as closing timestamp
+            when(index){
+                0 -> importantFacebookEvents.add(Pair("close", lastInteractionTimestamp))
+                1 -> importantInstagramEvents.add(Pair("close", lastInteractionTimestamp))
+                else -> importantTiktokEvents.add(Pair("close", lastInteractionTimestamp))
+            }
         }
 
         persistData()
@@ -186,6 +208,7 @@ class MyService : AccessibilityService() {
         if(eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             val isSwipeUp = event.scrollDeltaY > 0
             val length = event.scrollDeltaY
+            lastInteractionTimestamp = eventTime
             debugPxScrolled += length
 
             //Log.d(TAG, "$length $debugPxScrolled ${event.className} ${event.windowId} ${event.toIndex}")
@@ -210,7 +233,7 @@ class MyService : AccessibilityService() {
                             scrollingNudgeEnabled = true
                         }
                         if(scrollingNudgeEnabled && !checkingScrolling){
-                            checkScrollingNudge(packageName)
+                            checkScrollingNudge(packageName, index)
                         }
                     }
                     gestureAmountScrolled = 0
@@ -260,7 +283,7 @@ class MyService : AccessibilityService() {
                             pullingEvents.add(eventTime)
                             Log.d(TAG, "Pull detected on $packageName")
                             pullDetected = false
-                            checkPullingNudge(eventTime)
+                            checkPullingNudge(eventTime, index)
 
                             //ignore another really close pull
                             lastTimestampIgnorePull = eventTime
@@ -310,7 +333,7 @@ class MyService : AccessibilityService() {
                             //this is a pull event
                             pullingEvents.add(eventTime)
                             Log.d(TAG, "Pull detected on $packageName")
-                            checkPullingNudge(eventTime)
+                            checkPullingNudge(eventTime, index)
 
                             //ignore another really close pull
                             lastTimestampIgnorePull = eventTime
@@ -327,12 +350,26 @@ class MyService : AccessibilityService() {
                     val lastOpenedAppIndex = packageNamesSocialNetworks.indexOf(lastOpenedApp)
                     dailyMillisSpent[lastOpenedAppIndex] += (lastInteractionTimestamp - lastOpeningTimestamp)
                     Log.d(TAG, "updated info for $lastOpenedApp, daily millis = ${dailyMillisSpent[lastOpenedAppIndex]}")
+
+                    //update important events putting lastInteractionTimestamp as closing timestamp
+                    when(lastOpenedAppIndex){
+                        0 -> importantFacebookEvents.add(Pair("close", lastInteractionTimestamp))
+                        1 -> importantInstagramEvents.add(Pair("close", lastInteractionTimestamp))
+                        else -> importantTiktokEvents.add(Pair("close", lastInteractionTimestamp))
+                    }
                 }
 
                 //reset info
                 lastOpenedApp = packageName.toString()
                 lastOpeningTimestamp = eventTime
                 lastInteractionTimestamp = eventTime
+
+                //add "open" and open timestamp to important events
+                when(index){
+                    0 -> importantFacebookEvents.add(Pair("open", lastOpeningTimestamp))
+                    1 -> importantInstagramEvents.add(Pair("open", lastOpeningTimestamp))
+                    else -> importantTiktokEvents.add(Pair("open", lastOpeningTimestamp))
+                }
 
                 //reset info for scrolling nudge 2
                 debugPxScrolled = 0
@@ -366,6 +403,23 @@ class MyService : AccessibilityService() {
                     // -> suppose that app has been reopened from background
                     dailyMillisSpent[index] += (lastInteractionTimestamp - lastOpeningTimestamp)
                     Log.d(TAG, "App $packageName has been reopened, updated daily millis = ${dailyMillisSpent[index]}")
+
+                    //update important events with close and subsequent open of same app
+                    when(index){
+                        0 -> {
+                            importantFacebookEvents.add(Pair("close", lastInteractionTimestamp))
+                            importantFacebookEvents.add(Pair("open", eventTime))
+                        }
+                        1 -> {
+                            importantInstagramEvents.add(Pair("close", lastInteractionTimestamp))
+                            importantInstagramEvents.add(Pair("open", eventTime))
+                        }
+                        else -> {
+                            importantTiktokEvents.add(Pair("close", lastInteractionTimestamp))
+                            importantTiktokEvents.add(Pair("open", eventTime))
+                        }
+                    }
+
 
                     //reset info
                     lastOpeningTimestamp = eventTime
@@ -403,6 +457,11 @@ class MyService : AccessibilityService() {
             lastInteractionTimestamp = 0
             lastNudgeDisplayedTimestamp = 0
             dailyMillisSpent = arrayOf(0, 0, 0)
+
+            //reset info for daily pulls in facebook, instagram and tiktok
+            dailyGreenPulls = arrayOf(0, 0, 0)
+            dailyYellowPulls = arrayOf(0, 0, 0)
+            dailyRedPulls = arrayOf(0, 0, 0)
         }
     }
 
@@ -498,17 +557,19 @@ class MyService : AccessibilityService() {
             else -> openedAppLabel += " TikTok"
         }
 
-        //nudge is not displayed if it has already been displayed, even if for another app, within the previous 60 minutes
-        if (lastNudgeDisplayedTimestamp > 0 && eventTime - lastNudgeDisplayedTimestamp < minMillisInterval) {
-            Log.d(TAG, "Nudge1 not displayed because already displayed in previous $minMillisInterval millis")
-            return null
-        }
-
         //last nudge date == today -> Nudge 1 can appear at most once a day per each application
         if(lastNudgeDate[index] == today) {
             Log.d(TAG, "Nudge1 has already been displayed today for $packageName")
             return null
         }
+
+        //nudge is not displayed if it has already been displayed, even if for another app, within the previous 60 minutes
+        if (lastNudgeDisplayedTimestamp > 0 && eventTime - lastNudgeDisplayedTimestamp < minMillisInterval) {
+            Log.d(TAG, "Nudge1 not displayed because already displayed in previous $minMillisInterval millis")
+            return null
+        }
+        /*
+        * THIS CONSTRAINTS HAVE BEEN EXCLUDED FOR THE APP TO BE TESTED BY USERS
 
         //Nudge 1 is displayed at most twice a day
         var count = 0
@@ -543,6 +604,8 @@ class MyService : AccessibilityService() {
                 return null
             }
         }
+        */
+
 
         /*if arrived here, all conditions are met
         * I can chose among 4 different textual nudges (2 for scrolling and 2 for pull to refresh)
@@ -553,7 +616,7 @@ class MyService : AccessibilityService() {
         lastNudgeDisplayedTimestamp = eventTime         //update the timestamp of the last shown nudge
         lastNudgeDate[index] = today                    //set that today the nudge has been displayed for the app
 
-        Log.d(TAG, "Nudge1 displayed, daily millis: ${dailyMillisSpent[index]}. rand = $rand, rand2 = $rand2, count = $count")
+        Log.d(TAG, "Nudge1 displayed, daily millis: ${dailyMillisSpent[index]}. rand = $rand, rand2 = $rand2")
 
         if(rand2 == 1){
             val str = resources.getString(R.string.scroll_nudge1_2) //this textual nudge do not depend on the social
@@ -601,7 +664,7 @@ class MyService : AccessibilityService() {
         }
     }
 
-    private fun checkScrollingNudge(packageName: CharSequence) {
+    private fun checkScrollingNudge(packageName: CharSequence, index: Int) {
         if(packageName != lastOpenedApp){
             Log.d(TAG, "checkScrollingNudge but different app")
             WidgetNudge2.hideWidget()
@@ -625,12 +688,68 @@ class MyService : AccessibilityService() {
         val returnValue = checkThresholdsToDisplayScrollingNudge(count, lastInteractionTimestamp)
         //Log.d(TAG, "checkScrollingNudge -> count= $count \t returnValue = $returnValue")
 
+        //update important events adding scrolling green, yellow, or red
+        when(index){
+            0 -> {//facebook
+                //get type of last event
+                val lastType = importantFacebookEvents.lastOrNull()?.first
+                when(returnValue){
+                    0 ->{ //green -> if last type is not green -> insert
+                        if("green" != lastType)
+                            importantFacebookEvents.add(Pair("green", lastInteractionTimestamp))
+                    }
+                    1 -> { //yellow -> if last type is not yellow -> insert
+                        if("yellow" != lastType)
+                            importantFacebookEvents.add(Pair("yellow", lastInteractionTimestamp))
+                    }
+                    else -> {//red -> if last type is not red -> insert
+                        if("red" != lastType)
+                            importantFacebookEvents.add(Pair("red", lastInteractionTimestamp))
+                    }
+                }
+            }
+            1 -> {//instagram
+                val lastType = importantInstagramEvents.lastOrNull()?.first
+                when(returnValue){
+                    0 ->{ //green -> if last type is not green -> insert
+                        if("green" != lastType)
+                            importantInstagramEvents.add(Pair("green", lastInteractionTimestamp))
+                    }
+                    1 -> { //yellow -> if last type is not yellow -> insert
+                        if("yellow" != lastType)
+                            importantInstagramEvents.add(Pair("yellow", lastInteractionTimestamp))
+                    }
+                    else -> {//red -> if last type is not red -> insert
+                        if("red" != lastType)
+                            importantInstagramEvents.add(Pair("red", lastInteractionTimestamp))
+                    }
+                }
+            }
+            else -> {//tiktok
+                val lastType = importantTiktokEvents.lastOrNull()?.first
+                when(returnValue){
+                    0 ->{ //green -> if last type is not green -> insert
+                        if("green" != lastType)
+                            importantTiktokEvents.add(Pair("green", lastInteractionTimestamp))
+                    }
+                    1 -> { //yellow -> if last type is not yellow -> insert
+                        if("yellow" != lastType)
+                            importantTiktokEvents.add(Pair("yellow", lastInteractionTimestamp))
+                    }
+                    else -> {//red -> if last type is not red -> insert
+                        if("red" != lastType)
+                            importantTiktokEvents.add(Pair("red", lastInteractionTimestamp))
+                    }
+                }
+            }
+        }
+
         if(returnValue > 0 ) {
             checkingScrolling = true            //this disables the possibility of creating another recursion that checks for scrolling
             MainScope().launch {
                 //wait some time and check again (recursion)
                 delay(scrollingNudgeTimeout)
-                checkScrollingNudge(packageName)
+                checkScrollingNudge(packageName, index)
             }
         }
         else {
@@ -689,13 +808,18 @@ class MyService : AccessibilityService() {
             }
             return 0
         }
-        return -1 //already displaying scrolling nudge low
+        return 0 //already displaying scrolling nudge low
     }
 
-    private fun checkPullingNudge(eventTime: Long) {
+    private fun checkPullingNudge(eventTime: Long, index: Int) {
         val count = countPullsInTimeWindow(eventTime)
-        val returnValue = checkThresholdsToDisplayPullingNudge(count, eventTime)
+        val returnValue = checkThresholdsToDisplayPullingNudge(count)
         isPullingNudgeDisplayed = true
+        when(returnValue){
+            0 -> dailyGreenPulls[index]++
+            1 -> dailyYellowPulls[index]++
+            else -> dailyRedPulls[index]++
+        }
 
         Log.d(TAG, "Pulling check: count: $count, returnedValue: $returnValue")
         MainScope().launch {
@@ -722,7 +846,7 @@ class MyService : AccessibilityService() {
         return count
     }
 
-    private fun checkThresholdsToDisplayPullingNudge(count: Int, eventTime: Long): Int {
+    private fun checkThresholdsToDisplayPullingNudge(count: Int): Int {
         if(count >= pullingThresholdReallyFrequent){
             WidgetNudge2.fillWidget(this, false, 2)
             return 2
@@ -772,6 +896,33 @@ class MyService : AccessibilityService() {
 
         //get lastCurrentDate
         val lastCurrentDate = sharedPref.getString("lastCurrentDate", "")
+
+        //get array containing dailyPulls (pattern: ;green,yellow,red;green2,yellow2,red2)
+        //facebook
+        var dailyFacebookPulls = sharedPref.getString("dailyFacebookPulls", "")
+        if(lastCurrentDate == currentDate && !dailyFacebookPulls.isNullOrBlank()){
+            //need to remove last part of the string
+            val lastIndex = dailyFacebookPulls.lastIndexOf(";")
+            dailyFacebookPulls = dailyFacebookPulls.substring(0, lastIndex)
+        }
+        dailyFacebookPulls = "$dailyFacebookPulls;${dailyGreenPulls[0]},${dailyYellowPulls[0]},${dailyRedPulls[0]}"
+        //instagram
+        var dailyInstagramPulls = sharedPref.getString("dailyInstagramPulls", "")
+        if(lastCurrentDate == currentDate && !dailyInstagramPulls.isNullOrBlank()){
+            //need to remove last part of the string
+            val lastIndex = dailyInstagramPulls.lastIndexOf(";")
+            dailyInstagramPulls = dailyInstagramPulls.substring(0, lastIndex)
+        }
+        dailyInstagramPulls = "$dailyInstagramPulls;${dailyGreenPulls[1]},${dailyYellowPulls[1]},${dailyRedPulls[1]}"
+        //tiktok
+        var dailyTiktokPulls = sharedPref.getString("dailyTiktokPulls", "")
+        if(lastCurrentDate == currentDate && !dailyTiktokPulls.isNullOrBlank()){
+            //need to remove last part of the string
+            val lastIndex = dailyTiktokPulls.lastIndexOf(";")
+            dailyTiktokPulls = dailyTiktokPulls.substring(0, lastIndex)
+        }
+        dailyTiktokPulls = "$dailyTiktokPulls;${dailyGreenPulls[2]},${dailyYellowPulls[2]},${dailyRedPulls[2]}"
+
 
         //facebook
         if(millisSpentFacebook.isNullOrBlank()){
@@ -825,6 +976,7 @@ class MyService : AccessibilityService() {
         val s2 = millisTiktok.joinToString(separator = ";")
 
         val tiktokConstant = pixelPhoneConstantTiktok ?: 0
+
         //write to shared preferences
         with (sharedPref.edit()) {
             //write lastNudgeDate to sharedPreferences
@@ -843,10 +995,18 @@ class MyService : AccessibilityService() {
             //write tiktok constant
             putInt("pixelPhoneConstantTikTok", tiktokConstant)
 
+            //write number of pulls (green,yellow,red) for each app
+            putString("dailyFacebookPulls", dailyFacebookPulls)
+            putString("dailyInstagramPulls", dailyInstagramPulls)
+            putString("dailyTiktokPulls", dailyTiktokPulls)
+
+            //importantEvents for facebook, instagram and tiktok are not saved locally, they are just uploaded
             apply()
         }
 
         //TODO if needed, save on Firebase
+        Db.saveStatistics(lastNudgeDate, currentDate, s0, s1, s2, tiktokConstant, dailyFacebookPulls, dailyInstagramPulls, dailyTiktokPulls,
+            importantFacebookEvents, importantInstagramEvents, importantTiktokEvents)
         Log.d(TAG, "Data persisted: lastNudgeDates: ${lastNudgeDate[0]} ${lastNudgeDate[1]} ${lastNudgeDate[2]}\t millis: $s0 $s1 $s2")
     }
 

@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import com.example.thesistest2.R
+import com.example.thesistest2.db.Db
 import pl.droidsonroids.gif.GifImageView
 
 
@@ -45,25 +46,51 @@ class ActivityNudge1 : Activity() {
 
         val switchOpenActive = sharedPref.getBoolean("switchOpenActive", false)
         val switchBackActive = sharedPref.getBoolean("switchBackActive", false)
+        val openText = sharedPref.getString("openText", "")
+        val backText = sharedPref.getString("backText", "")
 
         val backBtn = findViewById<Button>(R.id.back_btn)
         val openBtn = findViewById<Button>(R.id.open_btn)
 
         //set text saved in preferences inside the button
-        if(switchOpenActive)
-            openBtn.text = sharedPref.getString("openText", "")
-        if(switchBackActive)
-            backBtn.text = sharedPref.getString("backText", "")
+        if(switchOpenActive && !(openText.isNullOrBlank()) )
+            openBtn.text = openText
+        if(switchBackActive && !(backText.isNullOrBlank()) )
+            backBtn.text = backText
 
         openBtn.setOnClickListener { handleOpenBtn() }
         backBtn.setOnClickListener { handleBackButton() }
     }
 
     private fun handleOpenBtn() {
+        //get shared preferences of service
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+        var clicksOnOpen = sharedPref.getInt("clicksOnOpen", 0)
+        clicksOnOpen++
+        //write to shared preferences
+        with (sharedPref.edit()) {
+            putInt("clicksOnOpen", clicksOnOpen)
+            apply()
+        }
+
+        //also increment in db
+        Db.incrementClicksOnOpen()
         finish()
     }
 
     private fun handleBackButton() {
+        //get shared preferences of service
+        val sharedPref = getSharedPreferences(getString(R.string.system_preference_file_key), Context.MODE_PRIVATE)
+        var clicksOnBack = sharedPref.getInt("clicksOnBack", 0)
+        clicksOnBack++
+        //write to shared preferences
+        with (sharedPref.edit()) {
+            putInt("clicksOnBack", clicksOnBack)
+            apply()
+        }
+        //also increment in db
+        Db.incrementClicksOnBack()
+
         //go to launcher
         val startMain = Intent(Intent.ACTION_MAIN)
         startMain.addCategory(Intent.CATEGORY_HOME)

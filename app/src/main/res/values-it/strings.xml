@@ -21,7 +21,7 @@
     <string name="permissions_granted_message">Grazie per aver garantito i permessi.</string>
     <string name="permissions_not_granted_message">Dai i tuoi permessi, altrimenti questa app non funzionerà.</string>
 
-    <!--Strings in settings activity-->
+    <!--Strings in main activity-->
     <string name="settings_label">Impostazioni</string>
     <string name="switch_open_label">Utilizza un testo personalizzato per aprire le app</string>
     <string name="switch_back_label">Utilizza un testo personalizzato per chiudere le app</string>
@@ -31,6 +31,17 @@
     <string name="enable_accessibility_service_explanation">Questa app necessita che tu abiliti il suo servizio di accessibilità dalle impostazioni. NudgeApp potrà collezionare informazioni su come utilizzi Facebook, Instagram e TikTok, e ti fornirà dei nudge che ti aiuteranno a prendere decisioni più consce durante il tuo utilizzo della tecnologia.\nClicca qui sotto -> Servizi scaricati -> NudgeApp -> Abilita</string>
     <string name="service_explanation_already_running">Il servizio è in esecuzione. Se vedi una notifica permanente da NudgeApp, tutto sta funzionando correttamente.</string>
     <string name="go_to_accessibility">Vai al menu di accessibilità</string>
+    <string name="tutorial_label">Tutorial</string>
+    <string name="step_1_label">Step 1/4</string>
+    <string name="powered_by_lorenzo_molteni">Powered by Lorenzo Molteni</string>
+    <string name="step_2_label">Step 2/4</string>
+    <string name="step_3_label">Step 3/4</string>
+    <string name="step_4_label">Step 4/4</string>
+    <string name="tutorial_explaination">Questa app monitorerà il tuo utilizzo di Facebook, Instagram e TikTok. Ti mostrerà delle schermate prima di entrare in una di queste app, aventi due pulsanti personalizzabili, uno per entrare nell\'app ed un altro per tornare alla home. Inoltre, durante il tuo utilizzo giornaliero del telefono, verranno mostrati alcuni widget. Entrambe le interazioni sono state studiare per aumentare la tua conoscenza dei "dark patterns", e spero che possano aiutarti a prendere delle decisioni più consapevoli durante il tuo uso della tecnologia.</string>
+    <string name="next_step_label">Prossimo step</string>
+    <string name="use_phone_normally_label">Continua ad usare il tuo telefono normalmente</string>
+    <string name="login_failed_label">Login non riuscito</string>
+    <string name="no_google_account_found">Nessun account Google trovato</string>
 
 
     <!--default strings for buttons -->
@@ -66,4 +77,10 @@
     <string name="text_pull_detection_facebook">facebook</string>
     <string name="text_pull_detection_instagram">storia</string>
     <string name="app_icon_description">App icon</string>
+
+    <!--client id needed to login with google -->
+    <string name="web_client_id">472679853061-rpsanva3mne3lb8j6t4dm9dem35kolsi.apps.googleusercontent.com</string>
+
+
+
 </resources>

@@ -4,9 +4,10 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.1445" />
+        <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/drawable/ic_baseline_arrow_back_24.xml" value="0.1345" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/drawable/ic_launcher_background.xml" value="0.111" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/drawable/nudge2_pulling_high1.xml" value="0.113" />
-        <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/activity_main.xml" value="0.25" />
+        <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/activity_main.xml" value="0.22" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/fixed_widget.xml" value="0.18614130434782608" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/textual_nudge_1.xml" value="0.225" />
         <entry key="..\:/Users/loren/AndroidStudioProjects/ThesisTest2/app/src/main/res/layout/widget_nudge_2.xml" value="1.25" />

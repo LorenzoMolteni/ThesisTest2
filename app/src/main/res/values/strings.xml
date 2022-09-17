@@ -21,7 +21,7 @@
     <string name="permissions_granted_message">Thank you for giving your permission.</string>
     <string name="permissions_not_granted_message">Give your permission or this app will not work.</string>
 
-    <!--Strings in settings activity-->
+    <!--Strings in main activity-->
     <string name="settings_label">Settings</string>
     <string name="switch_open_label">Use custom text for opening app</string>
     <string name="switch_back_label">Use custom text for closing app</string>
@@ -31,7 +31,17 @@
     <string name="enable_accessibility_service_explanation">This app needs you to manually enable an accessibility service from settings. Doing so, NudgeApp will be able to collect information about how you use Facebook, Instagram and TikTok, and provide nudges that will help you in making more conscious decisions while using technology. \nClick below -> Downloaded apps -> NudgeApp -> Enable</string>
     <string name="service_explanation_already_running">Service is already running. If you see a permanent notification from NudgeApp, everything is working correctly.</string>
     <string name="go_to_accessibility">Go to accessibility menu</string>
-
+    <string name="tutorial_label">Tutorial</string>
+    <string name="step_1_label">Step 1/4</string>
+    <string name="powered_by_lorenzo_molteni">Powered by Lorenzo Molteni</string>
+    <string name="step_2_label">Step 2/4</string>
+    <string name="step_3_label">Step 3/4</string>
+    <string name="step_4_label">Step 4/4</string>
+    <string name="tutorial_explaination">This app is going to monitor your usage of Facebook, Instagram and TikTok. It will prompt you some screens before you enter one of the apps above, having two customizable buttons, one for continuing to the selected app and the other for going back to the home screen. Moreover, during your daily smartphone usage some widget will be shown. Both interactions have been studied to increase your knowledge about dark patterns, and hopefully will help you to make more conscious decisions while using technology.</string>
+    <string name="next_step_label">Next step</string>
+    <string name="use_phone_normally_label">Continue using your phone normally</string>
+    <string name="login_failed_label">Login failed</string>
+    <string name="no_google_account_found">No Google account found</string>
 
     <!--default strings for buttons -->
     <string name="open_button_label">Open app</string>
@@ -64,4 +74,11 @@
     <string name="text_pull_detection_facebook">facebook</string>
     <string name="text_pull_detection_instagram">story</string>
     <string name="app_icon_description">App icon</string>
+
+    <!--client id needed to login with google -->
+    <string name="web_client_id">472679853061-rpsanva3mne3lb8j6t4dm9dem35kolsi.apps.googleusercontent.com</string>
+
+
+
+
 </resources>
